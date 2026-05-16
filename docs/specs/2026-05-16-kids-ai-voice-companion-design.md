@@ -44,7 +44,7 @@
 | 架构 | MVVM + Repository模式 | 清晰的职责分离 |
 | 依赖注入 | Hilt | Google推荐的DI框架 |
 | 网络 | Retrofit + OkHttp | 成熟的HTTP客户端，用于后端通信 |
-| 音频 | AudioRecord（录音）+ MediaPlayer（播放） | Android内置API |
+| 音频 | AudioRecord（录音）+ MediaPlayer（播放）+ android-opus-codec（Opus压缩） | Android内置API + 第三方Opus编解码库 |
 | 本地存储 | Room（对话缓存）+ DataStore（设置） | 结构化数据 + 键值配置 |
 
 ### 后端
@@ -55,7 +55,7 @@
 | 数据库 | SQLite via SQLAlchemy | 轻量级，适用于单家庭使用场景 |
 | LLM客户端 | OpenAI Python SDK（兼容模式） | 兼容任何OpenAI兼容的接口端点 |
 | 语音识别 | 讯飞语音听写WebSocket API | 中文语音识别效果最佳，支持流式，免费额度（500次/天） |
-| 语音合成 | 讯飞语音合成HTTP API | 多音色预设，与STT同一平台 |
+| 语音合成 | 讯飞语音合成WebSocket API | 多音色预设，支持MP3/Opus输出，与STT同一平台 |
 | 认证 | 简单设备令牌 + 家长PIN码 | 适用于单家庭场景的轻量级认证 |
 
 ## 核心功能
