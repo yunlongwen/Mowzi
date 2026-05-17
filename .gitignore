@@ -1,0 +1,58 @@
+# ========================
+# Android
+# ========================
+
+# Gradle
+android/.gradle/
+**/.gradle/
+
+# Build
+android/app/build/
+android/build/
+**/build/
+
+# IDE - Android Studio / IntelliJ
+android/.idea/
+**/.idea/
+
+# Local configuration
+android/local.properties
+android/gradle.properties
+
+# ========================
+# Python / Backend
+# ========================
+
+# Bytecode
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+
+# Virtual environments
+backend/.venv/
+backend/venv/
+backend/env/
+
+# Database
+backend/*.db
+backend/mowzi.db
+
+# Environment variables
+backend/.env
+
+# Testing
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+
+# ========================
+# OS
+# ========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ========================
+# Claude Code
+# ========================
+.claude/
