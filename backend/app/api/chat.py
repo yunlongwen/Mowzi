@@ -1,6 +1,6 @@
 """Chat API endpoints for STT and conversation handling."""
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Response
 from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
 import json
@@ -11,7 +11,8 @@ from app.services.xfyun_stt import XfyunSTTService
 from app.services.llm import LLMService, SentenceSplitter
 from app.services.xfyun_tts import XfyunTTSService
 from app.services.safety import SafetyService
-from app.schemas.common import ErrorResponse, ErrorDetail
+from app.services.usage import UsageService
+from app.schemas.common import ErrorResponse, ErrorDetail, ErrorCode
 from app.config import settings
 
 router = APIRouter()
@@ -36,6 +37,7 @@ tts_service = XfyunTTSService(
 )
 
 safety_service = SafetyService()
+usage_service = UsageService()
 
 
 @router.post("/chat/stt")
@@ -109,7 +111,8 @@ async def chat_stream(
     message: str = Form(...),
     conversation_id: int = Form(None),
     child_id: int = Depends(verify_device_token),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    response: Response = None
 ):
     """Stream chat endpoint with LLM + sentence-by-sentence TTS.
 
@@ -118,26 +121,78 @@ async def chat_stream(
         conversation_id: Optional conversation ID for context
         child_id: Verified child ID from device token
         db: Database session
+        response: Response object for headers
 
     Returns:
         SSE stream with text chunks, audio, and completion events
     """
     from app.models.message import Message
     from app.models.conversation import Conversation
+    from app.models.session import ActiveSession
 
     async def event_generator():
+        nonlocal response
         splitter = SentenceSplitter()
         full_text = ""
         sentence_index = 0
 
         try:
-            # Step 1: Content safety check
+            # Step 1: Check blocked hours
+            blocked, minutes_until = usage_service.check_blocked_hours()
+            if blocked:
+                yield {
+                    "event": "error",
+                    "data": json.dumps({
+                        "code": ErrorCode.BLOCKED_HOURS,
+                        "message": f"当前时段不可使用，请在{minutes_until}分钟后重试"
+                    })
+                }
+                yield {"event": "done", "data": ""}
+                return
+
+            # Step 2: Check daily usage limit
+            daily_exceeded, daily_remaining = usage_service.check_daily_limit(child_id, db)
+            if daily_exceeded:
+                yield {
+                    "event": "error",
+                    "data": json.dumps({
+                        "code": ErrorCode.USAGE_DAILY_LIMIT,
+                        "message": "今日使用时长已到，明天再来吧"
+                    })
+                }
+                yield {"event": "done", "data": ""}
+                return
+
+            # Step 3: Check session limit
+            session_exceeded, session_remaining = usage_service.check_session_limit(child_id, db)
+            if session_exceeded:
+                yield {
+                    "event": "error",
+                    "data": json.dumps({
+                        "code": ErrorCode.USAGE_SESSION_LIMIT,
+                        "message": "会话时间过长，休息一下吧"
+                    })
+                }
+                yield {"event": "done", "data": ""}
+                return
+
+            # Step 4: Start or update active session
+            active_session = db.query(ActiveSession).filter(
+                ActiveSession.child_id == child_id,
+                ActiveSession.status == "active"
+            ).first()
+            if not active_session:
+                active_session = usage_service.start_session(child_id, db)
+            else:
+                usage_service.update_session_activity(child_id, db)
+
+            # Step 5: Content safety check on user input
             safety_result = safety_service.check_content(message)
             if not safety_result["safe"]:
                 yield {
                     "event": "error",
                     "data": json.dumps({
-                        "code": "CONTENT_SAFE",
+                        "code": "CONTENT_BLOCKED",
                         "message": safety_result["message"],
                         "flagged_words": safety_result["flagged_words"]
                     })
@@ -145,7 +200,7 @@ async def chat_stream(
                 yield {"event": "done", "data": ""}
                 return
 
-            # Step 2: Save user message to database
+            # Step 6: Save user message to database
             conv_id = conversation_id
             if not conv_id:
                 # Create new conversation if not provided
@@ -168,13 +223,13 @@ async def chat_stream(
             db.commit()
             db.refresh(user_msg)
 
-            # Step 3: Build context (placeholder - context_service not yet available)
+            # Step 7: Build context (placeholder - context_service not yet available)
             messages = [
                 {"role": "system", "content": "你是一个友好的儿童AI伴侣，用温柔有趣的方式和孩子交流。"},
                 {"role": "user", "content": message}
             ]
 
-            # Step 4: Stream LLM response with sentence splitting + TTS
+            # Step 8: Stream LLM response with sentence splitting + TTS
             sentence_index = 0
             async for chunk_text in llm_service.stream_chat(messages, max_tokens=settings.max_llm_tokens):
                 # Send text chunk immediately
@@ -188,7 +243,9 @@ async def chat_stream(
                 sentences = splitter.add_chunk(chunk_text)
                 for sentence in sentences:
                     try:
-                        audio_b64, duration_ms = await tts_service.synthesize(sentence)
+                        # Filter content for TTS (safety check on LLM output)
+                        filtered_sentence = safety_service.filter_content(sentence)
+                        audio_b64, duration_ms = await tts_service.synthesize(filtered_sentence)
                         yield {
                             "event": "sentence_audio",
                             "data": json.dumps({
@@ -205,11 +262,13 @@ async def chat_stream(
                         sentence_index += 1
                         continue
 
-            # Step 5: Flush remaining text in buffer
+            # Step 9: Flush remaining text in buffer
             remaining = splitter.flush()
             if remaining:
                 try:
-                    audio_b64, duration_ms = await tts_service.synthesize(remaining)
+                    # Filter remaining content for TTS
+                    filtered_remaining = safety_service.filter_content(remaining)
+                    audio_b64, duration_ms = await tts_service.synthesize(filtered_remaining)
                     yield {
                         "event": "sentence_audio",
                         "data": json.dumps({
@@ -223,7 +282,7 @@ async def chat_stream(
                     # Skip remaining audio, don't crash the stream
                     pass
 
-            # Step 6: Save assistant message to database
+            # Step 10: Save assistant message to database
             assistant_msg = Message(
                 conversation_id=conv_id,
                 role="assistant",
@@ -232,15 +291,22 @@ async def chat_stream(
             db.add(assistant_msg)
             db.commit()
 
-            # Step 7: Send completion events
+            # Step 11: Record usage activity (1 minute per request)
+            usage_service.record_activity(child_id, db, minutes=1)
+
+            # Step 12: Calculate remaining minutes for header
+            remaining_minutes = usage_service.get_remaining_minutes(child_id, db)
+
+            # Step 13: Send completion events
             yield {
                 "event": "text_done",
                 "data": json.dumps({
                     "full_text": full_text,
-                    "message_id": assistant_msg.id
+                    "message_id": assistant_msg.id,
+                    "remaining_minutes": remaining_minutes
                 })
             }
-            yield {"event": "done", "data": json.dumps({"message_id": assistant_msg.id})}
+            yield {"event": "done", "data": json.dumps({"message_id": assistant_msg.id, "remaining_minutes": remaining_minutes})}
 
         except Exception as e:
             yield {
