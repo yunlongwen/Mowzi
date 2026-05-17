@@ -3,6 +3,7 @@ package com.mowzi.app.di
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.mowzi.app.AppConfig
 import com.mowzi.app.data.remote.MowziApi
 import com.mowzi.app.sse.SSEClient
 import dagger.Module
@@ -63,7 +64,7 @@ object NetworkModule {
         dataStore: DataStore<Preferences>
     ): Retrofit {
         val baseUrl = runBlocking {
-            dataStore.data.first()[BASE_URL_KEY] ?: "http://10.0.2.2:8000"
+            dataStore.data.first()[BASE_URL_KEY] ?: AppConfig.DEFAULT_API_URL
         }
         return Retrofit.Builder()
             .baseUrl(baseUrl)
@@ -82,7 +83,7 @@ object NetworkModule {
     @Singleton
     fun provideBaseUrl(dataStore: DataStore<Preferences>): String {
         return runBlocking {
-            dataStore.data.first()[BASE_URL_KEY] ?: "http://10.0.2.2:8000"
+            dataStore.data.first()[BASE_URL_KEY] ?: AppConfig.DEFAULT_API_URL
         }
     }
 }

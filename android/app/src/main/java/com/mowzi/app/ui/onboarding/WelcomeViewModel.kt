@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mowzi.app.AppConfig
 import com.mowzi.app.data.remote.MowziApi
 import com.mowzi.app.data.remote.dto.DeviceRegisterRequest
 import com.mowzi.app.util.TokenManager
@@ -28,7 +29,7 @@ data class WelcomeUiState(
     val activeConversationId: String? = null,
     val errorMessage: String? = null,
     val registered: Boolean = false,
-    val serverUrl: String = "http://10.0.2.2:8000"
+    val serverUrl: String = AppConfig.DEFAULT_API_URL
 )
 
 @HiltViewModel
@@ -52,7 +53,7 @@ class WelcomeViewModel @Inject constructor(
 
     private fun loadServerUrl() {
         viewModelScope.launch {
-            val url = dataStore.data.first()[BASE_URL_KEY] ?: "http://10.0.2.2:8000"
+            val url = dataStore.data.first()[BASE_URL_KEY] ?: AppConfig.DEFAULT_API_URL
             _uiState.update { it.copy(serverUrl = url) }
         }
     }
