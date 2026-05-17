@@ -9,7 +9,7 @@ class SafetyService:
     # Basic Chinese profanity list (minimal for demonstration)
     BLOCKED_WORDS = [
         "滚开", "去死", "笨蛋", "白痴", "智障", "傻子",
-        "废物", "垃圾", "讨厌", "讨厌", "烦人", "王八蛋"
+        "废物", "垃圾", "讨厌", "烦人", "王八蛋"
     ]
 
     def __init__(self, blocked_words: List[str] = None):

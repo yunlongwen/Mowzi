@@ -187,31 +187,41 @@ async def chat_stream(
                 # Check for complete sentences and trigger TTS
                 sentences = splitter.add_chunk(chunk_text)
                 for sentence in sentences:
-                    audio_b64, duration_ms = await tts_service.synthesize(sentence)
-                    yield {
-                        "event": "sentence_audio",
-                        "data": json.dumps({
-                            "sentence_index": sentence_index,
-                            "text": sentence,
-                            "audio_base64": audio_b64,
-                            "duration_ms": duration_ms
-                        })
-                    }
-                    sentence_index += 1
+                    try:
+                        audio_b64, duration_ms = await tts_service.synthesize(sentence)
+                        yield {
+                            "event": "sentence_audio",
+                            "data": json.dumps({
+                                "sentence_index": sentence_index,
+                                "text": sentence,
+                                "audio_base64": audio_b64,
+                                "duration_ms": duration_ms
+                            })
+                        }
+                        sentence_index += 1
+                    except Exception as e:
+                        # Skip this sentence's audio, log error, continue with next sentence
+                        # Don't crash the entire stream
+                        sentence_index += 1
+                        continue
 
             # Step 5: Flush remaining text in buffer
             remaining = splitter.flush()
             if remaining:
-                audio_b64, duration_ms = await tts_service.synthesize(remaining)
-                yield {
-                    "event": "sentence_audio",
-                    "data": json.dumps({
-                        "sentence_index": sentence_index,
-                        "text": remaining,
-                        "audio_base64": audio_b64,
-                        "duration_ms": duration_ms
-                    })
-                }
+                try:
+                    audio_b64, duration_ms = await tts_service.synthesize(remaining)
+                    yield {
+                        "event": "sentence_audio",
+                        "data": json.dumps({
+                            "sentence_index": sentence_index,
+                            "text": remaining,
+                            "audio_base64": audio_b64,
+                            "duration_ms": duration_ms
+                        })
+                    }
+                except Exception as e:
+                    # Skip remaining audio, don't crash the stream
+                    pass
 
             # Step 6: Save assistant message to database
             assistant_msg = Message(
