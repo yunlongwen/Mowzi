@@ -19,9 +19,6 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 import javax.inject.Inject
 
-/**
- * UI state for chat screen.
- */
 data class ChatUiState(
     val messages: List<ChatMessageUi> = emptyList(),
     val recordingState: RecordingState = RecordingState.Idle,
@@ -30,41 +27,31 @@ data class ChatUiState(
     val currentCharacterId: String = "",
     val currentCharacterName: String = "",
     val currentConversationId: String = "",
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val usageWarningMinutes: Int? = null,
+    val usageLimitReached: Boolean = false
 )
 
-/**
- * Chat message UI model.
- */
 data class ChatMessageUi(
     val id: String,
-    val role: String, // "user" or "assistant"
+    val role: String,
     val content: String,
     val audioLocalPath: String? = null,
     val timestamp: Long = System.currentTimeMillis()
 )
 
-/**
- * Recording state enum.
- */
 sealed class RecordingState {
     object Idle : RecordingState()
     object Recording : RecordingState()
     object Processing : RecordingState()
 }
 
-/**
- * Streaming state enum.
- */
 sealed class StreamingState {
     object Idle : StreamingState()
     object Streaming : StreamingState()
     object Complete : StreamingState()
 }
 
-/**
- * ViewModel for chat functionality including voice recording and streaming.
- */
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
@@ -78,9 +65,6 @@ class ChatViewModel @Inject constructor(
     private var recordingJob: Job? = null
     private var streamingJob: Job? = null
 
-    /**
-     * Sets the current conversation and character.
-     */
     fun setConversation(conversationId: String, characterId: String, characterName: String) {
         _uiState.update {
             it.copy(
@@ -109,37 +93,26 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Starts voice recording.
-     */
     fun startRecording() {
         recordingJob?.cancel()
         recordingJob = viewModelScope.launch {
             _uiState.update { it.copy(recordingState = RecordingState.Recording) }
-            audioRecorder.startRecording().collect { pcmChunk ->
-                // PCM chunks are accumulated in AudioRecorder
-            }
+            audioRecorder.startRecording().collect { }
         }
     }
 
-    /**
-     * Stops recording and sends voice message.
-     */
     fun stopRecordingAndSend() {
         recordingJob?.cancel()
         recordingJob = viewModelScope.launch {
             _uiState.update { it.copy(recordingState = RecordingState.Processing) }
-
             audioRecorder.stopRecording()
-
-            // Get accumulated audio data from recorder
             val audioBytes = audioRecorder.getAccumulatedPcmData()
 
             if (audioBytes.isEmpty()) {
                 _uiState.update {
                     it.copy(
                         recordingState = RecordingState.Idle,
-                        errorMessage = "No audio recorded"
+                        errorMessage = null
                     )
                 }
                 return@launch
@@ -149,21 +122,14 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Cancels current recording.
-     */
     fun cancelRecording() {
         recordingJob?.cancel()
         audioRecorder.stopRecording()
         _uiState.update { it.copy(recordingState = RecordingState.Idle) }
     }
 
-    /**
-     * Sends a voice message (PCM data) through STT then streaming.
-     */
     private suspend fun sendVoiceMessage(pcmData: ByteArray) {
         try {
-            // Step 1: Speech to text
             val text = withContext(Dispatchers.IO) {
                 chatRepository.speechToText(pcmData)
             }
@@ -172,16 +138,14 @@ class ChatViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         recordingState = RecordingState.Idle,
-                        errorMessage = "Could not understand audio"
+                        errorMessage = "没听清哦，再说一次吧？"
                     )
                 }
                 return
             }
 
-            // Step 2: Add user message
-            val userMessageId = UUID.randomUUID().toString()
             val userMessage = ChatMessageUi(
-                id = userMessageId,
+                id = UUID.randomUUID().toString(),
                 role = "user",
                 content = text
             )
@@ -192,22 +156,17 @@ class ChatViewModel @Inject constructor(
                 )
             }
 
-            // Step 3: Stream response
             sendTextMessage(text)
-
         } catch (e: Exception) {
             _uiState.update {
                 it.copy(
                     recordingState = RecordingState.Idle,
-                    errorMessage = "Failed to process voice: ${e.message}"
+                    errorMessage = "没听清哦，再说一次吧？"
                 )
             }
         }
     }
 
-    /**
-     * Sends a text message and streams the response.
-     */
     fun sendTextMessage(text: String) {
         streamingJob?.cancel()
         streamingJob = viewModelScope.launch {
@@ -215,7 +174,6 @@ class ChatViewModel @Inject constructor(
             val characterId = _uiState.value.currentCharacterId
 
             if (conversationId.isBlank() || characterId.isBlank()) {
-                _uiState.update { it.copy(errorMessage = "No active conversation") }
                 return@launch
             }
 
@@ -227,7 +185,6 @@ class ChatViewModel @Inject constructor(
             }
 
             try {
-                // Create placeholder for streaming response
                 val streamingMessageId = UUID.randomUUID().toString()
                 val streamingMessage = ChatMessageUi(
                     id = streamingMessageId,
@@ -242,7 +199,6 @@ class ChatViewModel @Inject constructor(
                     )
                 }
 
-                // Collect streaming chunks
                 chatRepository.streamChat(conversationId, characterId, text).collect { chunk ->
                     handleStreamChunk(chunk, streamingMessageId)
                 }
@@ -250,54 +206,58 @@ class ChatViewModel @Inject constructor(
                 _uiState.update { it.copy(streamingState = StreamingState.Complete) }
 
             } catch (e: Exception) {
+                val isInterrupted = _uiState.value.messages.lastOrNull()?.content?.isNotBlank() == true
                 _uiState.update {
                     it.copy(
                         streamingState = StreamingState.Idle,
-                        errorMessage = "Stream failed: ${e.message}"
+                        errorMessage = if (isInterrupted) "回答被打断了" else "毛仔在想呢，等一下再来找我吧"
                     )
                 }
             }
         }
     }
 
-    /**
-     * Handles a streaming chunk from the SSE response.
-     */
     private fun handleStreamChunk(chunk: ChatStreamChunk, messageId: String) {
         when (chunk.type) {
             "text_chunk" -> {
                 val newContent = (_uiState.value.currentStreamingText ?: "") + (chunk.content ?: "")
-                _uiState.update {
-                    it.copy(currentStreamingText = newContent)
-                }
-                // Update message content
+                _uiState.update { it.copy(currentStreamingText = newContent) }
                 updateMessageContent(messageId, newContent)
             }
             "text_done" -> {
-                // Text streaming complete, audio may still come
                 val newContent = chunk.content ?: _uiState.value.currentStreamingText
-                _uiState.update {
-                    it.copy(currentStreamingText = newContent)
-                }
+                _uiState.update { it.copy(currentStreamingText = newContent) }
                 updateMessageContent(messageId, newContent)
             }
             "sentence_audio" -> {
-                // Enqueue audio for playback
                 chunk.audioData?.let { audioBase64 ->
-                    audioPlayer.enqueue(audioBase64)
+                    try {
+                        audioPlayer.enqueue(audioBase64)
+                    } catch (_: Exception) {
+                        // TTS合成失败 — 仅显示文字，不播放音频
+                    }
                 }
-            }
-            "sentence_end" -> {
-                // Sentence complete, could update UI
             }
             "done" -> {
                 _uiState.update { it.copy(streamingState = StreamingState.Complete) }
             }
             "error" -> {
+                val msg = chunk.content ?: ""
+                val friendlyMsg = when {
+                    msg.contains("USAGE_DAILY_LIMIT") -> "今天的时间用完啦，明天再来找毛仔吧！"
+                    msg.contains("USAGE_SESSION_LIMIT") -> "今天的时间用完啦，明天再来找毛仔吧！"
+                    msg.contains("BLOCKED_HOURS") -> "毛仔休息啦，明天再来找我吧"
+                    msg.contains("CONTENT_BLOCKED") -> "我们来聊点别的吧"
+                    msg.contains("XFYUN_QUOTA") -> "现在只能打字聊天哦"
+                    else -> "毛仔在想呢，等一下再来找我吧"
+                }
+
+                val usageReached = msg.contains("USAGE_DAILY_LIMIT") || msg.contains("USAGE_SESSION_LIMIT")
                 _uiState.update {
                     it.copy(
                         streamingState = StreamingState.Idle,
-                        errorMessage = chunk.content ?: "Stream error"
+                        errorMessage = friendlyMsg,
+                        usageLimitReached = usageReached
                     )
                 }
             }
@@ -305,6 +265,10 @@ class ChatViewModel @Inject constructor(
                 _uiState.update { it.copy(streamingState = StreamingState.Complete) }
             }
         }
+    }
+
+    fun handleUsageWarning(remainingMinutes: Int) {
+        _uiState.update { it.copy(usageWarningMinutes = remainingMinutes) }
     }
 
     private fun updateMessageContent(messageId: String, content: String) {
@@ -316,16 +280,14 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Clears any error message.
-     */
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
     }
 
-    /**
-     * Stops audio playback.
-     */
+    fun dismissUsageWarning() {
+        _uiState.update { it.copy(usageWarningMinutes = null) }
+    }
+
     fun stopAudio() {
         audioPlayer.stop()
     }

@@ -12,6 +12,11 @@ import com.mowzi.app.data.remote.dto.DeviceRegisterResponse
 import com.mowzi.app.data.remote.dto.PinRequest
 import com.mowzi.app.data.remote.dto.ResumeConversationResponse
 import com.mowzi.app.data.remote.dto.SttResponse
+import com.mowzi.app.data.remote.dto.ParentSettingsResponse
+import com.mowzi.app.data.remote.dto.ParentSettingsRequest
+import com.mowzi.app.data.remote.dto.ParentUsageResponse
+import com.mowzi.app.data.remote.dto.ParentConversationsResponse
+import com.mowzi.app.data.remote.dto.ParentMessagesResponse
 import okhttp3.MultipartBody
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -56,6 +61,27 @@ interface MowziApi {
     suspend fun resumeConversation(
         @Path("conversationId") conversationId: Int
     ): Response<ResumeConversationResponse>
+
+    @GET("/api/v1/parent/settings")
+    suspend fun getParentSettings(): Response<ParentSettingsResponse>
+
+    @PUT("/api/v1/parent/settings")
+    suspend fun updateParentSettings(
+        @Body request: ParentSettingsRequest
+    ): Response<ParentSettingsResponse>
+
+    @GET("/api/v1/parent/usage")
+    suspend fun getParentUsage(
+        @Query("period") period: String = "daily"
+    ): Response<ParentUsageResponse>
+
+    @GET("/api/v1/parent/conversations")
+    suspend fun getParentConversations(): Response<ParentConversationsResponse>
+
+    @GET("/api/v1/parent/conversations/{conversationId}/messages")
+    suspend fun getParentMessages(
+        @Path("conversationId") conversationId: String
+    ): Response<ParentMessagesResponse>
 
     @GET("/api/v1/config/characters")
     suspend fun getCharacters(): Response<CharactersResponse>

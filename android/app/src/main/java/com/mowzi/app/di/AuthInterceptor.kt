@@ -19,8 +19,14 @@ class AuthInterceptor @Inject constructor(
             return chain.proceed(originalRequest)
         }
 
-        // Get device token synchronously
-        val token = runBlocking { tokenManager.getDeviceToken() }
+        // Determine which token to use based on endpoint
+        val token = if (path.contains("/parent/")) {
+            // Parent API endpoints need parent token
+            runBlocking { tokenManager.getParentToken() }
+        } else {
+            // Other endpoints use device token
+            runBlocking { tokenManager.getDeviceToken() }
+        }
 
         return if (token != null) {
             val authenticatedRequest = originalRequest.newBuilder()

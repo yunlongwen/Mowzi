@@ -10,7 +10,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
@@ -56,14 +56,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
-/**
- * Chat screen composable with voice recording and streaming.
- */
 @Composable
 fun ChatScreen(
     viewModel: ChatViewModel = hiltViewModel(),
@@ -75,19 +72,29 @@ fun ChatScreen(
     var textInput by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
-    // Auto-scroll to bottom when new messages arrive
     LaunchedEffect(uiState.messages.size, uiState.currentStreamingText) {
         if (uiState.messages.isNotEmpty()) {
             listState.animateScrollToItem(uiState.messages.size - 1)
         }
     }
 
-    // Show error in snackbar
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { error ->
             snackbarHostState.showSnackbar(error)
             viewModel.clearError()
         }
+    }
+
+    LaunchedEffect(uiState.usageWarningMinutes) {
+        uiState.usageWarningMinutes?.let { minutes ->
+            snackbarHostState.showSnackbar("还有 $minutes 分钟就要结束啦")
+            viewModel.dismissUsageWarning()
+        }
+    }
+
+    if (uiState.usageLimitReached) {
+        UsageLimitScreen()
+        return
     }
 
     Scaffold(
@@ -98,13 +105,11 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Top bar
             ChatTopBar(
                 characterName = uiState.currentCharacterName.ifBlank { characterName },
                 onCharacterSwitch = onCharacterSwitch
             )
 
-            // Message list
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -122,7 +127,6 @@ fun ChatScreen(
                 }
             }
 
-            // Streaming indicator
             AnimatedVisibility(
                 visible = uiState.streamingState == StreamingState.Streaming,
                 enter = fadeIn(),
@@ -131,7 +135,6 @@ fun ChatScreen(
                 StreamingIndicator()
             }
 
-            // Input area
             ChatInputArea(
                 textInput = textInput,
                 onTextChange = { textInput = it },
@@ -152,9 +155,6 @@ fun ChatScreen(
     }
 }
 
-/**
- * Top bar with character name and switch button.
- */
 @Composable
 private fun ChatTopBar(
     characterName: String,
@@ -189,9 +189,6 @@ private fun ChatTopBar(
     }
 }
 
-/**
- * Chat message item composable.
- */
 @Composable
 private fun ChatMessageItem(
     message: ChatMessageUi,
@@ -251,9 +248,6 @@ private fun ChatMessageItem(
     }
 }
 
-/**
- * Streaming indicator with animated dots.
- */
 @Composable
 private fun StreamingIndicator() {
     val infiniteTransition = rememberInfiniteTransition(label = "streaming")
@@ -283,16 +277,13 @@ private fun StreamingIndicator() {
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
-            text = "Mowzi 正在回复...",
+            text = "毛仔 正在回复...",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
-/**
- * Chat input area with voice recording and text input.
- */
 @Composable
 private fun ChatInputArea(
     textInput: String,
@@ -314,7 +305,6 @@ private fun ChatInputArea(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Voice button
             VoiceButton(
                 recordingState = recordingState,
                 enabled = enabled,
@@ -325,7 +315,6 @@ private fun ChatInputArea(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Text input
             OutlinedTextField(
                 value = textInput,
                 onValueChange = onTextChange,
@@ -338,7 +327,6 @@ private fun ChatInputArea(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Send button
             IconButton(
                 onClick = onSendText,
                 enabled = enabled && textInput.isNotBlank()
@@ -352,9 +340,6 @@ private fun ChatInputArea(
     }
 }
 
-/**
- * Voice button with recording animation.
- */
 @Composable
 private fun VoiceButton(
     recordingState: RecordingState,
@@ -398,7 +383,7 @@ private fun VoiceButton(
                 when (recordingState) {
                     RecordingState.Idle -> onStartRecording()
                     RecordingState.Recording -> onStopRecording()
-                    RecordingState.Processing -> {} // Disabled
+                    RecordingState.Processing -> {}
                 }
             },
             enabled = enabled || recordingState == RecordingState.Recording
@@ -419,3 +404,48 @@ private fun VoiceButton(
         }
     }
 }
+
+@Composable
+private fun UsageLimitScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Pets,
+                contentDescription = null,
+                modifier = Modifier.size(100.dp),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "今天的时间用完啦",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "明天再来找毛仔吧！",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+private fun Modifier.widthIn(max: Dp): Modifier = this.then(
+    androidx.compose.foundation.layout.widthIn(max = max)
+)

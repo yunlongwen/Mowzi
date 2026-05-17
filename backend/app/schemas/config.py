@@ -17,4 +17,6 @@ class PinRequest(BaseModel):
 
 
 class AuthTokenResponse(BaseModel):
-    token: str
+    success: bool
+    token: str | None = None
+    expiresAt: int | None = None

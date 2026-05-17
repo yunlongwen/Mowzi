@@ -1,12 +1,19 @@
 package com.mowzi.app.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.mowzi.app.ui.characters.CharacterSelectScreen
+import com.mowzi.app.ui.chat.ChatScreen
+import com.mowzi.app.ui.onboarding.WelcomeScreen
+import com.mowzi.app.ui.parent.ParentDashboardScreen
+import com.mowzi.app.ui.parent.ParentDashboardViewModel
+import com.mowzi.app.ui.parent.PinAuthViewModel
+import com.mowzi.app.ui.parent.PinEntryScreen
 
 sealed class Route(val path: String) {
     data object Onboarding : Route("onboarding")
@@ -22,14 +29,30 @@ sealed class Route(val path: String) {
 @Composable
 fun MowziNavGraph(
     navController: NavHostController,
-    startDestination: String = Route.CharacterSelect.path
+    startDestination: String = Route.Onboarding.path
 ) {
     NavHost(
         navController = navController,
         startDestination = startDestination
     ) {
         composable(Route.Onboarding.path) {
-            // TODO: Implement onboarding screen
+            WelcomeScreen(
+                onRegistered = {
+                    navController.navigate(Route.CharacterSelect.path) {
+                        popUpTo(Route.Onboarding.path) { inclusive = true }
+                    }
+                },
+                onHasActiveConversation = { conversationId ->
+                    navController.navigate(Route.Chat.createRoute(conversationId)) {
+                        popUpTo(Route.Onboarding.path) { inclusive = true }
+                    }
+                },
+                onGoToCharacterSelect = {
+                    navController.navigate(Route.CharacterSelect.path) {
+                        popUpTo(Route.Onboarding.path) { inclusive = true }
+                    }
+                }
+            )
         }
 
         composable(Route.CharacterSelect.path) {
@@ -43,19 +66,41 @@ fun MowziNavGraph(
             )
         ) { backStackEntry ->
             val conversationId = backStackEntry.arguments?.getString("conversationId") ?: return@composable
-            // TODO: Implement chat screen with conversationId
+            ChatScreen(
+                onCharacterSwitch = {
+                    navController.navigate(Route.CharacterSelect.path) {
+                        popUpTo(Route.Chat.path) { inclusive = true }
+                    }
+                }
+            )
         }
 
         composable(Route.ConversationList.path) {
-            // TODO: Implement conversation list screen
+            com.mowzi.app.ui.conversations.ConversationListScreen(
+                onConversationClick = { convId ->
+                    navController.navigate(Route.Chat.createRoute(convId))
+                }
+            )
         }
 
         composable(Route.PinEntry.path) {
-            // TODO: Implement PIN entry screen
+            val parentAuthViewModel: PinAuthViewModel = hiltViewModel()
+            PinEntryScreen(
+                viewModel = parentAuthViewModel,
+                onAuthenticated = {
+                    navController.navigate(Route.ParentDashboard.path) {
+                        popUpTo(Route.PinEntry.path) { inclusive = true }
+                    }
+                }
+            )
         }
 
         composable(Route.ParentDashboard.path) {
-            // TODO: Implement parent dashboard screen
+            val parentDashboardViewModel: ParentDashboardViewModel = hiltViewModel()
+            ParentDashboardScreen(
+                viewModel = parentDashboardViewModel,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }

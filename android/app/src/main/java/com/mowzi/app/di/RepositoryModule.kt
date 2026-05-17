@@ -5,6 +5,8 @@ import com.mowzi.app.data.repository.ConversationRepository
 import com.mowzi.app.data.repository.ConversationRepositoryImpl
 import com.mowzi.app.data.repository.MessageRepository
 import com.mowzi.app.data.repository.MessageRepositoryImpl
+import com.mowzi.app.data.repository.ParentRepository
+import com.mowzi.app.data.repository.ParentRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -32,4 +34,10 @@ abstract class RepositoryModule {
     abstract fun bindMessageRepository(
         impl: MessageRepositoryImpl
     ): MessageRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindParentRepository(
+        impl: ParentRepositoryImpl
+    ): ParentRepository
 }

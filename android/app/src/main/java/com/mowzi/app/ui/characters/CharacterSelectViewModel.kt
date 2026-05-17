@@ -50,7 +50,7 @@ class CharacterSelectViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = "Failed to load characters: ${response.code()}"
+                            errorMessage = "毛仔现在连不上，等一下再试"
                         )
                     }
                 }
@@ -58,7 +58,7 @@ class CharacterSelectViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = "Network error: ${e.message}"
+                        errorMessage = "毛仔现在连不上，等一下再试"
                     )
                 }
             }
@@ -74,31 +74,20 @@ class CharacterSelectViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     val conversationId = response.body()?.id
                     if (conversationId != null) {
-                        _uiState.update {
-                            it.copy(createdConversationId = conversationId)
-                        }
+                        _uiState.update { it.copy(createdConversationId = conversationId) }
                     } else {
                         _uiState.update {
-                            it.copy(
-                                selectedCharacterId = null,
-                                errorMessage = "Invalid conversation response"
-                            )
+                            it.copy(selectedCharacterId = null, errorMessage = "出错了，再选一次吧")
                         }
                     }
                 } else {
                     _uiState.update {
-                        it.copy(
-                            selectedCharacterId = null,
-                            errorMessage = "Failed to create conversation: ${response.code()}"
-                        )
+                        it.copy(selectedCharacterId = null, errorMessage = "毛仔现在连不上，等一下再试")
                     }
                 }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(
-                        selectedCharacterId = null,
-                        errorMessage = "Network error: ${e.message}"
-                    )
+                    it.copy(selectedCharacterId = null, errorMessage = "毛仔现在连不上，等一下再试")
                 }
             }
         }
