@@ -1,5 +1,6 @@
 package com.mowzi.app.data.repository
 
+import android.util.Log
 import com.mowzi.app.data.local.dao.MessageDao
 import com.mowzi.app.data.local.entity.CachedMessageEntity
 import com.mowzi.app.data.remote.dto.ChatStreamChunk
@@ -24,11 +25,16 @@ class ChatRepository @Inject constructor(
     private val json: Json,
     private val baseUrl: String
 ) {
+    companion object {
+        private const val TAG = "wyl"
+    }
+
     fun streamChat(
         conversationId: String,
         characterId: String,
         text: String
     ): Flow<ChatStreamChunk> = flow {
+        Log.d(TAG, "ChatRepository.streamChat: starting, conversationId=$conversationId, characterId=$characterId, text=$text")
         val request = ChatStreamRequest(
             conversationId = conversationId,
             characterId = characterId,
@@ -38,18 +44,26 @@ class ChatRepository @Inject constructor(
         val jsonBody = json.encodeToString(ChatStreamRequest.serializer(), request)
             .toRequestBody("application/json".toMediaType())
 
+        Log.d(TAG, "ChatRepository.streamChat: request built, url=$baseUrl/api/v1/chat/stream")
+
         val httpRequest = Request.Builder()
             .url("$baseUrl/api/v1/chat/stream")
             .post(jsonBody)
             .build()
 
-        sseClient.connect(httpRequest).collect { event ->
-            try {
-                val chunk = json.decodeFromString<ChatStreamChunk>(event.data)
-                emit(chunk)
-            } catch (e: Exception) {
-                // Ignore malformed events
+        try {
+            sseClient.connect(httpRequest).collect { event ->
+                Log.d(TAG, "ChatRepository.streamChat: received SSE event=${event.event}, data=${event.data.take(100)}")
+                try {
+                    val chunk = json.decodeFromString<ChatStreamChunk>(event.data)
+                    emit(chunk)
+                } catch (e: Exception) {
+                    Log.e(TAG, "ChatRepository.streamChat: failed to decode chunk", e)
+                }
             }
+            Log.d(TAG, "ChatRepository.streamChat: collect completed")
+        } catch (e: Exception) {
+            Log.e(TAG, "ChatRepository.streamChat: exception during streaming", e)
         }
     }.flowOn(Dispatchers.IO)
 

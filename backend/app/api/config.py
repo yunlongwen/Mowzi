@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models.child import ChildProfile
 from app.models.character import AICharacter
 from app.schemas.config import DeviceRegisterRequest, DeviceRegisterResponse
-from app.services.auth import register_device_token
+from app.services.auth import register_device_token_to_db
 
 
 router = APIRouter()
@@ -50,7 +50,7 @@ async def register_device(request: DeviceRegisterRequest, db: Session = Depends(
     # Generate device token (simple UUID token)
     token = f"dev_{uuid4().hex}"
 
-    # Register token with child_id
-    register_device_token(token, child.id)
+    # Register token with child_id in database
+    register_device_token_to_db(db, token, child.id, request.deviceId)
 
     return DeviceRegisterResponse(success=True, deviceToken=token)

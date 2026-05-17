@@ -155,9 +155,9 @@ class XfyunSpeechService @Inject constructor(
 
         recognizer.setParameter(SpeechConstant.LANGUAGE, "zh_cn")
         recognizer.setParameter(SpeechConstant.ACCENT, "mandarin")
-        recognizer.setParameter(SpeechConstant.VAD_BOS, "4000")
-        recognizer.setParameter(SpeechConstant.VAD_EOS, "1000")
-        recognizer.setParameter(SpeechConstant.ASR_PTT, "1")
+        recognizer.setParameter(SpeechConstant.VAD_BOS, "5000") // 5秒静音才开始识别，抗噪声
+        recognizer.setParameter(SpeechConstant.VAD_EOS, "2000") // 2秒静音才结束，完整句子
+        recognizer.setParameter(SpeechConstant.ASR_PTT, "1")    // 输出标点
         recognizer.setParameter("sample_rate", "16000")
     }
 

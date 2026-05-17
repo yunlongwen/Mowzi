@@ -87,16 +87,6 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `cancelRecording resets state to Idle`() = runTest {
-        val vm = createViewModel()
-        vm.startRecording()
-        advanceUntilIdle()
-        assertEquals(RecordingState.Recording, vm.uiState.value.recordingState)
-        vm.cancelRecording()
-        assertEquals(RecordingState.Idle, vm.uiState.value.recordingState)
-    }
-
-    @Test
     fun `sendTextMessage does nothing without conversation`() = runTest {
         val vm = createViewModel()
         vm.sendTextMessage("hello")

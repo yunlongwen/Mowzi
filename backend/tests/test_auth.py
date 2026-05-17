@@ -159,16 +159,16 @@ class TestTokenVerification:
         )
         token = reg_response.json()["deviceToken"]
 
-        # Verify using the token (mock auth endpoint for testing)
-        from app.services.auth import verify_device_token_valid
-        child_id = verify_device_token_valid(token)
+        # Verify using the token via database (production way)
+        from app.services.auth import verify_device_token_in_db
+        child_id = verify_device_token_in_db(db_session, token)
         assert child_id is not None
 
     def test_verify_device_token_invalid(self, client, db_session):
         """Test invalid device token is rejected."""
-        from app.services.auth import verify_device_token_valid
+        from app.services.auth import verify_device_token_in_db
 
-        child_id = verify_device_token_valid("invalid_token")
+        child_id = verify_device_token_in_db(db_session, "invalid_token")
         assert child_id is None
 
     def test_verify_parent_token_valid(self, client, db_session):
@@ -193,12 +193,12 @@ class TestTokenVerification:
         assert response.status_code == 200
         token = response.json()["token"]
 
-        # Verify the token is valid
-        from app.services.auth import verify_parent_token_valid
-        assert verify_parent_token_valid(token) is True
+        # Verify the token is valid via database
+        from app.services.auth import verify_parent_token_in_db
+        assert verify_parent_token_in_db(db_session, token) is True
 
     def test_verify_parent_token_invalid(self, client, db_session):
         """Test invalid parent token is rejected."""
-        from app.services.auth import verify_parent_token_valid
+        from app.services.auth import verify_parent_token_in_db
 
-        assert verify_parent_token_valid("invalid_parent_token") is False
+        assert verify_parent_token_in_db(db_session, "invalid_parent_token") is False

@@ -44,6 +44,7 @@ async def chat_stream(
 
     async def event_generator():
         full_text = ""
+        _conv_id = conv_id  # Use separate variable to avoid Python scoping issues
 
         try:
             # Step 1: Check blocked hours
@@ -113,8 +114,8 @@ async def chat_stream(
                 yield {"event": "done", "data": json.dumps({"type": "done"})}
                 return
 
-            # Step 6: Save user message to database
-            if not conv_id:
+            # Step 6: Save user message to database, create conversation if needed
+            if not _conv_id:
                 char_id_int = int(character_id) if character_id else 1
                 conv = Conversation(
                     child_id=child_id,
@@ -124,10 +125,10 @@ async def chat_stream(
                 db.add(conv)
                 db.commit()
                 db.refresh(conv)
-                conv_id = str(conv.id)
+                _conv_id = str(conv.id)
 
             user_msg = Message(
-                conversation_id=int(conv_id),
+                conversation_id=int(_conv_id),
                 role="user",
                 content=message
             )
@@ -138,7 +139,10 @@ async def chat_stream(
             # Step 7: Build context
             char_id_int = int(character_id) if character_id else 1
             character = db.query(AICharacter).filter(AICharacter.id == char_id_int).first()
-            system_prompt = character.system_prompt if character else "你是一个友好的儿童AI伴侣，用温柔有趣的方式和孩子交流。"
+            base_prompt = character.system_prompt if character else "你是一个友好的儿童AI伴侣，用温柔有趣的方式和孩子交流。"
+
+            # Force Chinese-only response
+            system_prompt = base_prompt + "\n\n重要：必须只用中文回答，禁止出现任何英语单词或句子。"
 
             messages = [
                 {"role": "system", "content": system_prompt},
@@ -155,7 +159,7 @@ async def chat_stream(
 
             # Step 9: Save assistant message to database
             assistant_msg = Message(
-                conversation_id=int(conv_id),
+                conversation_id=int(_conv_id),
                 role="assistant",
                 content=full_text
             )

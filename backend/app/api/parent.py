@@ -22,7 +22,7 @@ from app.schemas.parent import (
     ParentMessagesResponse,
     ParentMessageDto
 )
-from app.services.auth import register_parent_token, verify_parent_token
+from app.services.auth import register_parent_token_to_db
 
 
 router = APIRouter()
@@ -57,8 +57,8 @@ async def parent_auth(request: PinRequest, db: Session = Depends(get_db)):
     # Generate parent token (simple UUID token)
     token = f"parent_{uuid4().hex}"
 
-    # Register parent token
-    register_parent_token(token)
+    # Register parent token to database
+    register_parent_token_to_db(db, token)
 
     return AuthTokenResponse(success=True, token=token)
 

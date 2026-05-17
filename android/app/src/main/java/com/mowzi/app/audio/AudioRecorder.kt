@@ -13,9 +13,9 @@ import kotlin.math.sqrt
  * Records audio at 16kHz mono 16-bit PCM.
  */
 class AudioRecorder(
-    private val silenceThreshold: Double = 200.0,
+    private val silenceThreshold: Double = 500.0,
     private val silenceTimeoutMs: Long = 3000L,
-    private val maxDurationMs: Long = 60000L // 60 seconds max
+    private val maxDurationMs: Long = 10000L // 10 seconds max
 ) {
     companion object {
         private const val TAG = "wyl"

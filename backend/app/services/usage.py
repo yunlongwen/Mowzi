@@ -12,8 +12,8 @@ class UsageService:
     """使用时长追踪服务。"""
 
     # 默认配置
-    DEFAULT_DAILY_LIMIT_MINUTES = 60  # 每日限制60分钟
-    DEFAULT_SESSION_LIMIT_MINUTES = 30  # 单次会话限制30分钟
+    DEFAULT_DAILY_LIMIT_MINUTES = 120  # 每日限制120分钟
+    DEFAULT_SESSION_LIMIT_MINUTES = 60  # 单次会话限制60分钟
     DEFAULT_BLOCKED_HOURS_START = 21  # 晚上9点开始禁用
     DEFAULT_BLOCKED_HOURS_END = 7  # 早上7点结束禁用
 
@@ -104,7 +104,6 @@ class UsageService:
         Returns:
             (是否超限, 剩余分钟数)
         """
-        # 查找该儿童的活跃会话
         active_session = db.query(ActiveSession).filter(
             ActiveSession.child_id == child_id,
             ActiveSession.status == "active"

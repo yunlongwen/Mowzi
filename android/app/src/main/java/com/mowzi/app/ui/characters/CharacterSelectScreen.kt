@@ -48,11 +48,14 @@ fun CharacterSelectScreen(
     Log.d("wyl", "CharacterSelectScreen: composable entered, uiState isLoading=${uiState.isLoading}, errorMessage=${uiState.errorMessage}, characters=${uiState.characters.size}, selectedCharacterId=${uiState.selectedCharacterId}")
 
     // Navigate to chat when conversation is created
-    LaunchedEffect(uiState.createdConversationId) {
-        Log.d("wyl", "CharacterSelectScreen: LaunchedEffect createdConversationId=${uiState.createdConversationId}")
+    LaunchedEffect(uiState.createdConversationId, uiState.selectedCharacterId) {
+        Log.d("wyl", "CharacterSelectScreen: LaunchedEffect createdConversationId=${uiState.createdConversationId}, selectedCharacterId=${uiState.selectedCharacterId}")
         uiState.createdConversationId?.let { conversationId ->
             Log.d("wyl", "CharacterSelectScreen: navigating to chat with conversationId=$conversationId")
-            navController.navigate(Route.Chat.createRoute(conversationId))
+            val characterId = uiState.selectedCharacterId ?: return@let
+            val character = uiState.characters.find { it.id == characterId }
+            val characterName = character?.name ?: ""
+            navController.navigate(Route.Chat.createRoute(conversationId, characterId, characterName))
             viewModel.clearConversationNavigation()
         }
     }

@@ -65,11 +65,22 @@ class LLMService:
         max_tokens: int = 300
     ) -> AsyncGenerator[str, None]:
         """流式调用LLM，yield每个文本片段。"""
+        extra_params = {}
+
+        # MiniMax: 使用reasoning_split=false关闭thinking输出
+        if "minimax" in self.model.lower():
+            extra_params["reasoning_split"] = False
+
+        # o系列模型需要reasoning参数来控制thinking，设置为low可减少thinking输出
+        if "o1" in self.model or "o3" in self.model or "o4" in self.model:
+            extra_params["reasoning"] = {"effort": "low"}
+
         stream = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             max_tokens=max_tokens,
-            stream=True
+            stream=True,
+            **extra_params
         )
         async for chunk in stream:
             if chunk.choices[0].delta.content:

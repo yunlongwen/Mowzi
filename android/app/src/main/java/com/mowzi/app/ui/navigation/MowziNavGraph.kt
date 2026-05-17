@@ -2,6 +2,7 @@ package com.mowzi.app.ui.navigation
 
 import android.util.Log
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -20,8 +21,10 @@ import com.mowzi.app.ui.parent.PinEntryScreen
 sealed class Route(val path: String) {
     data object Onboarding : Route("onboarding")
     data object CharacterSelect : Route("characterSelect")
-    data object Chat : Route("chat/{conversationId}") {
-        fun createRoute(conversationId: String) = "chat/$conversationId"
+    data object Chat : Route("chat/{conversationId}/{characterId}/{characterName}") {
+        fun createRoute(conversationId: String, characterId: String = "", characterName: String = ""): String {
+            return "chat/$conversationId/$characterId/${java.net.URLEncoder.encode(characterName, "UTF-8")}"
+        }
     }
     data object ConversationList : Route("conversationList")
     data object PinEntry : Route("pinEntry")
@@ -64,12 +67,21 @@ fun MowziNavGraph(
         composable(
             route = Route.Chat.path,
             arguments = listOf(
-                navArgument("conversationId") { type = NavType.StringType }
+                navArgument("conversationId") { type = NavType.StringType },
+                navArgument("characterId") { type = NavType.StringType },
+                navArgument("characterName") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val conversationId = backStackEntry.arguments?.getString("conversationId") ?: return@composable
-            Log.d("wyl", "MowziNavGraph: Chat route, conversationId=$conversationId")
+            val characterId = backStackEntry.arguments?.getString("characterId") ?: ""
+            val characterName = backStackEntry.arguments?.getString("characterName") ?: ""
+            Log.d("wyl", "MowziNavGraph: Chat route, conversationId=$conversationId, characterId=$characterId, characterName=$characterName")
+            val viewModel: ChatViewModel = hiltViewModel()
+            LaunchedEffect(conversationId) {
+                viewModel.setConversation(conversationId, characterId, characterName)
+            }
             ChatScreen(
+                viewModel = viewModel,
                 onCharacterSwitch = {
                     navController.navigate(Route.CharacterSelect.path) {
                         popUpTo(Route.Chat.path) { inclusive = true }

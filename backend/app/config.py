@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     max_audio_duration_sec: int = 60
     min_audio_duration_sec: float = 0.5
     silence_detection_sec: float = 3.0
-    max_llm_tokens: int = 300
+    max_llm_tokens: int = 150
     context_window_tokens: int = 8000
 
     class Config:

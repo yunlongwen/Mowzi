@@ -6,6 +6,7 @@ from app.models.parent_settings import ParentSettings
 from app.models.memory import KeyMemory, ConversationSummary
 from app.models.session import ActiveSession
 from app.models.usage import UsageLog
+from app.models.device_token import DeviceToken
 
 __all__ = [
     "ChildProfile",
@@ -17,4 +18,5 @@ __all__ = [
     "ConversationSummary",
     "ActiveSession",
     "UsageLog",
+    "DeviceToken",
 ]

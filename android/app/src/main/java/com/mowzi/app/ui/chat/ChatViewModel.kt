@@ -75,6 +75,7 @@ class ChatViewModel @Inject constructor(
     private var streamingJob: Job? = null
     private val sentenceBuffer = StringBuilder()
     private val sentenceEndingRegex = Regex("[。！？…\\.!?]")
+    private var isInThinkingBlock = false
 
     init {
         val conversationId: String? = savedStateHandle["conversationId"]
@@ -116,7 +117,7 @@ class ChatViewModel @Inject constructor(
     fun startRecording() {
         Log.d(TAG, "startRecording: called, current state=${_uiState.value.recordingState}")
         recordingJob?.cancel()
-        recordingJob = viewModelScope.launch {
+        recordingJob = viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(recordingState = RecordingState.Recording) }
             Log.d(TAG, "startRecording: state set to Recording")
             audioRecorder.startRecording()
@@ -163,7 +164,7 @@ class ChatViewModel @Inject constructor(
                 }
                 Log.d(TAG, "sendVoiceMessage: recognizeFromPcm result=${result.text}, confidence=${result.confidence}")
 
-                if (result.text.isBlank() || result.confidence < 0.3f) {
+                if (result.text.isBlank() || result.confidence < 0.1f) {
                     _uiState.update {
                         it.copy(
                             recordingState = RecordingState.Idle,
@@ -173,18 +174,8 @@ class ChatViewModel @Inject constructor(
                     return@launch
                 }
 
-                val userMessage = ChatMessageUi(
-                    id = UUID.randomUUID().toString(),
-                    role = "user",
-                    content = result.text
-                )
-                _uiState.update {
-                    it.copy(
-                        messages = it.messages + userMessage,
-                        recordingState = RecordingState.Idle
-                    )
-                }
-
+                // Reset recording state before sending
+                _uiState.update { it.copy(recordingState = RecordingState.Idle) }
                 sendTextMessage(result.text)
             } catch (e: Exception) {
                 Log.e(TAG, "STT失败", e)
@@ -204,8 +195,22 @@ class ChatViewModel @Inject constructor(
             val conversationId = _uiState.value.currentConversationId
             val characterId = _uiState.value.currentCharacterId
 
-            if (conversationId.isBlank() || characterId.isBlank()) {
+            Log.d(TAG, "sendTextMessage: conversationId=$conversationId, characterId=$characterId, text=$text")
+            Log.d(TAG, "sendTextMessage: current streamingState=${_uiState.value.streamingState}")
+
+            if (conversationId.isBlank()) {
+                Log.d(TAG, "sendTextMessage: returning early, conversationId is blank")
                 return@launch
+            }
+
+            // Add user message to UI immediately
+            val userMessage = ChatMessageUi(
+                id = UUID.randomUUID().toString(),
+                role = "user",
+                content = text
+            )
+            _uiState.update {
+                it.copy(messages = it.messages + userMessage)
             }
 
             sentenceBuffer.clear()
@@ -224,6 +229,8 @@ class ChatViewModel @Inject constructor(
                     content = ""
                 )
 
+                Log.d(TAG, "sendTextMessage: adding streaming message, id=$streamingMessageId")
+
                 _uiState.update {
                     it.copy(
                         messages = it.messages + streamingMessage,
@@ -231,13 +238,17 @@ class ChatViewModel @Inject constructor(
                     )
                 }
 
+                Log.d(TAG, "sendTextMessage: calling streamChat, conversationId=$conversationId, characterId=$characterId, text=$text")
                 chatRepository.streamChat(conversationId, characterId, text).collect { chunk ->
+                    Log.d(TAG, "sendTextMessage: received chunk type=${chunk.type}, content=${chunk.content?.take(50)}")
                     handleStreamChunk(chunk, streamingMessageId)
                 }
 
+                Log.d(TAG, "sendTextMessage: collect completed, setting streamingState to Complete")
                 _uiState.update { it.copy(streamingState = StreamingState.Complete) }
 
             } catch (e: Exception) {
+                Log.e(TAG, "sendTextMessage: exception during streaming", e)
                 val isInterrupted = _uiState.value.messages.lastOrNull()?.content?.isNotBlank() == true
                 _uiState.update {
                     it.copy(
@@ -250,22 +261,48 @@ class ChatViewModel @Inject constructor(
     }
 
     private fun handleStreamChunk(chunk: ChatStreamChunk, messageId: String) {
+        val rawContent = chunk.content ?: ""
+
+        // Handle thinking block markers - check content, not type
+        when {
+            rawContent == "<think>" -> {
+                isInThinkingBlock = true
+                return
+            }
+            rawContent == "</think>" -> {
+                isInThinkingBlock = false
+                return
+            }
+        }
+
+        // Skip content inside thinking blocks
+        if (isInThinkingBlock) {
+            return
+        }
+
+        // Skip empty content
+        if (rawContent.isBlank()) {
+            return
+        }
+
         when (chunk.type) {
             "text_chunk" -> {
-                val content = chunk.content ?: ""
-                val newContent = (_uiState.value.currentStreamingText ?: "") + content
+                val newContent = (_uiState.value.currentStreamingText ?: "") + rawContent
                 _uiState.update { it.copy(currentStreamingText = newContent) }
                 updateMessageContent(messageId, newContent)
-                handleTextForTts(content)
+                handleTextForTts(rawContent)
             }
             "text_done" -> {
-                val newContent = chunk.content ?: _uiState.value.currentStreamingText
-                _uiState.update { it.copy(currentStreamingText = newContent) }
-                updateMessageContent(messageId, newContent)
+                _uiState.update { it.copy(currentStreamingText = "") }
                 flushSentenceBuffer()
             }
             "done" -> {
-                _uiState.update { it.copy(streamingState = StreamingState.Complete) }
+                _uiState.update {
+                    it.copy(
+                        streamingState = StreamingState.Idle,
+                        currentStreamingText = ""
+                    )
+                }
             }
             "error" -> {
                 val msg = chunk.content ?: ""
