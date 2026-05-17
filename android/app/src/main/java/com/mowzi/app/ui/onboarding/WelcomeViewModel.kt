@@ -107,10 +107,9 @@ class WelcomeViewModel @Inject constructor(
                 val response = api.getActiveConversation()
                 if (response.isSuccessful) {
                     val body = response.body()
-                    val activeConv = body?.conversation
-                    if (activeConv != null) {
+                    if (body != null) {
                         _uiState.update {
-                            it.copy(isCheckingActive = false, activeConversationId = activeConv.id)
+                            it.copy(isCheckingActive = false, activeConversationId = body.id)
                         }
                     } else {
                         _uiState.update { it.copy(isCheckingActive = false) }

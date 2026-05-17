@@ -5,6 +5,7 @@
 # Gradle
 android/.gradle/
 **/.gradle/
+android/gradle/wrapper/gradle-wrapper.jar
 
 # Build
 android/app/build/
