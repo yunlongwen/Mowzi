@@ -8,4 +8,6 @@ interface ConversationRepository {
     fun getAllConversations(): Flow<List<ConversationEntity>>
     suspend fun upsertConversation(conversation: ConversationEntity)
     suspend fun updateConversationStatus(id: String, status: String)
+    suspend fun getConversationsByStatus(status: String): List<ConversationEntity>
+    suspend fun refreshConversations()
 }

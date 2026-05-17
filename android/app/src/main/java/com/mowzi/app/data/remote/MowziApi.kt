@@ -4,11 +4,13 @@ import com.mowzi.app.data.remote.dto.ActiveConversationResponse
 import com.mowzi.app.data.remote.dto.AuthTokenResponse
 import com.mowzi.app.data.remote.dto.CharactersResponse
 import com.mowzi.app.data.remote.dto.ChatStreamRequest
+import com.mowzi.app.data.remote.dto.ConversationListResponse
 import com.mowzi.app.data.remote.dto.ConversationResponse
 import com.mowzi.app.data.remote.dto.CreateConversationRequest
 import com.mowzi.app.data.remote.dto.DeviceRegisterRequest
 import com.mowzi.app.data.remote.dto.DeviceRegisterResponse
 import com.mowzi.app.data.remote.dto.PinRequest
+import com.mowzi.app.data.remote.dto.ResumeConversationResponse
 import com.mowzi.app.data.remote.dto.SttResponse
 import okhttp3.MultipartBody
 import okhttp3.ResponseBody
@@ -18,7 +20,10 @@ import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
+import retrofit2.http.Path
+import retrofit2.http.Query
 import retrofit2.http.Streaming
+import retrofit2.http.Put
 
 interface MowziApi {
     @Multipart
@@ -39,6 +44,18 @@ interface MowziApi {
 
     @GET("/api/v1/conversations/active")
     suspend fun getActiveConversation(): Response<ActiveConversationResponse?>
+
+    @GET("/api/v1/conversations")
+    suspend fun getConversations(
+        @Query("status") status: String? = null,
+        @Query("page") page: Int = 1,
+        @Query("page_size") pageSize: Int = 20
+    ): Response<ConversationListResponse>
+
+    @PUT("/api/v1/conversations/{conversationId}/resume")
+    suspend fun resumeConversation(
+        @Path("conversationId") conversationId: Int
+    ): Response<ResumeConversationResponse>
 
     @GET("/api/v1/config/characters")
     suspend fun getCharacters(): Response<CharactersResponse>
