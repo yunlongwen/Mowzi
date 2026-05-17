@@ -2,10 +2,13 @@ package com.mowzi.app.ui.onboarding
 
 import android.annotation.SuppressLint
 import android.provider.Settings
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mowzi.app.data.remote.MowziApi
-import com.mowzi.app.data.remote.dto.CreateConversationRequest
 import com.mowzi.app.data.remote.dto.DeviceRegisterRequest
 import com.mowzi.app.util.TokenManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,20 +27,43 @@ data class WelcomeUiState(
     val isCheckingActive: Boolean = false,
     val activeConversationId: String? = null,
     val errorMessage: String? = null,
-    val registered: Boolean = false
+    val registered: Boolean = false,
+    val serverUrl: String = "http://10.0.2.2:8000"
 )
 
 @HiltViewModel
 class WelcomeViewModel @Inject constructor(
     private val tokenManager: TokenManager,
-    private val api: MowziApi
+    private val api: MowziApi,
+    private val dataStore: DataStore<Preferences>
 ) : ViewModel() {
+
+    companion object {
+        val BASE_URL_KEY = stringPreferencesKey("api_base_url")
+    }
 
     private val _uiState = MutableStateFlow(WelcomeUiState())
     val uiState: StateFlow<WelcomeUiState> = _uiState.asStateFlow()
 
     init {
+        loadServerUrl()
         checkExistingToken()
+    }
+
+    private fun loadServerUrl() {
+        viewModelScope.launch {
+            val url = dataStore.data.first()[BASE_URL_KEY] ?: "http://10.0.2.2:8000"
+            _uiState.update { it.copy(serverUrl = url) }
+        }
+    }
+
+    fun updateServerUrl(url: String) {
+        viewModelScope.launch {
+            dataStore.edit { prefs ->
+                prefs[BASE_URL_KEY] = url
+            }
+            _uiState.update { it.copy(serverUrl = url) }
+        }
     }
 
     private fun checkExistingToken() {
