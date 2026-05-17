@@ -1,6 +1,6 @@
 """内容安全检查服务。"""
 
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 
 class SafetyService:

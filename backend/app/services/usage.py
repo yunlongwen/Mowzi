@@ -1,12 +1,11 @@
 """使用时长追踪服务。"""
 
 from datetime import datetime, timedelta
-from typing import Tuple, Optional
+from typing import Tuple
 from sqlalchemy.orm import Session
 
 from app.models.usage import UsageLog
 from app.models.session import ActiveSession
-from app.models.child import ChildProfile
 
 
 class UsageService:
