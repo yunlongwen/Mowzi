@@ -1,5 +1,6 @@
 package com.mowzi.app.ui.characters
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,9 +45,13 @@ fun CharacterSelectScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    Log.d("wyl", "CharacterSelectScreen: composable entered, uiState isLoading=${uiState.isLoading}, errorMessage=${uiState.errorMessage}, characters=${uiState.characters.size}, selectedCharacterId=${uiState.selectedCharacterId}")
+
     // Navigate to chat when conversation is created
     LaunchedEffect(uiState.createdConversationId) {
+        Log.d("wyl", "CharacterSelectScreen: LaunchedEffect createdConversationId=${uiState.createdConversationId}")
         uiState.createdConversationId?.let { conversationId ->
+            Log.d("wyl", "CharacterSelectScreen: navigating to chat with conversationId=$conversationId")
             navController.navigate(Route.Chat.createRoute(conversationId))
             viewModel.clearConversationNavigation()
         }
@@ -57,13 +62,16 @@ fun CharacterSelectScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        Log.d("wyl", "CharacterSelectScreen: entering when, isLoading=${uiState.isLoading}, errorMessage=${uiState.errorMessage}")
         when {
             uiState.isLoading -> {
+                Log.d("wyl", "CharacterSelectScreen: branch - loading")
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
             uiState.errorMessage != null -> {
+                Log.d("wyl", "CharacterSelectScreen: branch - error, message=${uiState.errorMessage}")
                 Column(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -75,6 +83,7 @@ fun CharacterSelectScreen(
                 }
             }
             else -> {
+                Log.d("wyl", "CharacterSelectScreen: branch - show characters, count=${uiState.characters.size}")
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     contentPadding = PaddingValues(16.dp),

@@ -4,12 +4,25 @@ import com.mowzi.app.data.local.dao.ConversationDao
 import com.mowzi.app.data.local.entity.ConversationEntity
 import com.mowzi.app.data.remote.MowziApi
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 class ConversationRepositoryImpl @Inject constructor(
     private val conversationDao: ConversationDao,
     private val api: MowziApi
 ) : ConversationRepository {
+
+    private val formatter = DateTimeFormatter.ISO_INSTANT
+
+    private fun parseTimestamp(str: String): Long {
+        return try {
+            Instant.parse(str).toEpochMilli()
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
+    }
 
     override suspend fun getActiveConversation(): ConversationEntity? {
         return conversationDao.getActive()
@@ -38,9 +51,9 @@ class ConversationRepositoryImpl @Inject constructor(
                     characterId = dto.characterId.toString(),
                     title = dto.title ?: "新对话",
                     status = dto.status,
-                    createdAt = dto.createdAt,
-                    updatedAt = dto.updatedAt,
-                    lastMessageAt = dto.lastMessageAt
+                    createdAt = parseTimestamp(dto.createdAt),
+                    updatedAt = parseTimestamp(dto.updatedAt),
+                    lastMessageAt = parseTimestamp(dto.lastMessageAt)
                 )
             }
             entities.forEach { conversationDao.upsert(it) }
@@ -79,9 +92,9 @@ class ConversationRepositoryImpl @Inject constructor(
             characterId = characterId.toString(),
             title = title ?: "新对话",
             status = status,
-            createdAt = createdAt,
-            updatedAt = updatedAt,
-            lastMessageAt = lastMessageAt
+            createdAt = parseTimestamp(createdAt),
+            updatedAt = parseTimestamp(updatedAt),
+            lastMessageAt = parseTimestamp(lastMessageAt)
         )
     }
 }

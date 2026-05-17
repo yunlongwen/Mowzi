@@ -1,6 +1,7 @@
 package com.mowzi.app.ui.chat
 
 import android.util.Log
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mowzi.app.audio.AudioPlayer
@@ -59,11 +60,12 @@ class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val audioRecorder: AudioRecorder,
     private val audioPlayer: AudioPlayer,
-    private val speechService: XfyunSpeechService
+    private val speechService: XfyunSpeechService,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     companion object {
-        private const val TAG = "ChatViewModel"
+        private const val TAG = "wyl"
     }
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -74,7 +76,16 @@ class ChatViewModel @Inject constructor(
     private val sentenceBuffer = StringBuilder()
     private val sentenceEndingRegex = Regex("[。！？…\\.!?]")
 
+    init {
+        val conversationId: String? = savedStateHandle["conversationId"]
+        Log.d(TAG, "ChatViewModel: init, conversationId=$conversationId")
+        conversationId?.let {
+            setConversation(it, "", "")
+        }
+    }
+
     fun setConversation(conversationId: String, characterId: String, characterName: String) {
+        Log.d(TAG, "setConversation: conversationId=$conversationId, characterId=$characterId, characterName=$characterName")
         _uiState.update {
             it.copy(
                 currentConversationId = conversationId,
@@ -103,19 +114,24 @@ class ChatViewModel @Inject constructor(
     }
 
     fun startRecording() {
+        Log.d(TAG, "startRecording: called, current state=${_uiState.value.recordingState}")
         recordingJob?.cancel()
         recordingJob = viewModelScope.launch {
             _uiState.update { it.copy(recordingState = RecordingState.Recording) }
-            audioRecorder.startRecording().collect { }
+            Log.d(TAG, "startRecording: state set to Recording")
+            // 不再 collect，音频数据已在 AudioRecorder 内部累积
         }
     }
 
     fun stopRecordingAndSend() {
+        Log.d(TAG, "stopRecordingAndSend: called")
         recordingJob?.cancel()
         recordingJob = viewModelScope.launch {
             _uiState.update { it.copy(recordingState = RecordingState.Processing) }
+            Log.d(TAG, "stopRecordingAndSend: state set to Processing")
             audioRecorder.stopRecording()
             val audioBytes = audioRecorder.getAccumulatedPcmData()
+            Log.d(TAG, "stopRecordingAndSend: audioBytes size=${audioBytes.size}")
 
             if (audioBytes.isEmpty()) {
                 _uiState.update {
@@ -138,11 +154,14 @@ class ChatViewModel @Inject constructor(
     }
 
     private fun sendVoiceMessage(pcmData: ByteArray) {
+        Log.d(TAG, "sendVoiceMessage: called, pcmData size=${pcmData.size}")
         viewModelScope.launch {
             try {
+                Log.d(TAG, "sendVoiceMessage: calling speechService.recognizeFromPcm")
                 val result = withContext(Dispatchers.IO) {
                     speechService.recognizeFromPcm(pcmData)
                 }
+                Log.d(TAG, "sendVoiceMessage: recognizeFromPcm result=${result.text}, confidence=${result.confidence}")
 
                 if (result.text.isBlank() || result.confidence < 0.3f) {
                     _uiState.update {

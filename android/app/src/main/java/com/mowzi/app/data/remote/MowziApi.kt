@@ -1,6 +1,7 @@
 package com.mowzi.app.data.remote
 
 import com.mowzi.app.data.remote.dto.ActiveConversationResponse
+import com.mowzi.app.data.remote.dto.NullableActiveConversationResponse
 import com.mowzi.app.data.remote.dto.AuthTokenResponse
 import com.mowzi.app.data.remote.dto.CharactersResponse
 import com.mowzi.app.data.remote.dto.ChatStreamRequest
@@ -37,7 +38,7 @@ interface MowziApi {
     ): Response<ConversationResponse>
 
     @GET("/api/v1/conversations/active")
-    suspend fun getActiveConversation(): Response<ActiveConversationResponse?>
+    suspend fun getActiveConversationRaw(): Response<ResponseBody>
 
     @GET("/api/v1/conversations")
     suspend fun getConversations(

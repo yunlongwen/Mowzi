@@ -4,7 +4,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.mowzi.app.MainDispatcherRule
 import com.mowzi.app.data.remote.MowziApi
-import com.mowzi.app.data.remote.dto.ActiveConversationResponse
 import com.mowzi.app.data.remote.dto.DeviceRegisterResponse
 import com.mowzi.app.util.TokenManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -51,24 +50,19 @@ class WelcomeViewModelTest {
     @Test
     fun `init with token checks active conversation`() = runTest {
         whenever(tokenManager.getDeviceToken()).thenReturn("existing-token")
-        whenever(api.getActiveConversation()).thenReturn(
-            Response.success(
-                ActiveConversationResponse(
-                    id = "conv1", characterId = "char1", title = "测试",
-                    status = "active", createdAt = 0L, updatedAt = 0L, lastMessageAt = 0L
-                )
-            )
+        whenever(api.getActiveConversationRaw()).thenReturn(
+            Response.success("{\"id\":\"123\",\"characterId\":\"char1\",\"title\":\"测试\",\"status\":\"active\",\"createdAt\":\"2024-01-01T00:00:00Z\",\"updatedAt\":\"2024-01-01T00:00:00Z\",\"lastMessageAt\":\"2024-01-01T00:00:00Z\"}".toResponseBody())
         )
         val viewModel = WelcomeViewModel(tokenManager, api, createFakeDataStore())
         advanceUntilIdle()
         assertEquals(true, viewModel.uiState.value.hasToken)
-        assertEquals("conv1", viewModel.uiState.value.activeConversationId)
+        assertEquals("123", viewModel.uiState.value.activeConversationId)
     }
 
     @Test
     fun `init with token but no active conversation`() = runTest {
         whenever(tokenManager.getDeviceToken()).thenReturn("existing-token")
-        whenever(api.getActiveConversation()).thenReturn(Response.success(null))
+        whenever(api.getActiveConversationRaw()).thenReturn(Response.success("".toResponseBody()))
         val viewModel = WelcomeViewModel(tokenManager, api, createFakeDataStore())
         advanceUntilIdle()
         assertEquals(true, viewModel.uiState.value.hasToken)

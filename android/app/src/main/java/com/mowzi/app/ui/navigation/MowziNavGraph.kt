@@ -1,5 +1,6 @@
 package com.mowzi.app.ui.navigation
 
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -9,6 +10,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.mowzi.app.ui.characters.CharacterSelectScreen
 import com.mowzi.app.ui.chat.ChatScreen
+import com.mowzi.app.ui.chat.ChatViewModel
 import com.mowzi.app.ui.onboarding.WelcomeScreen
 import com.mowzi.app.ui.parent.ParentDashboardScreen
 import com.mowzi.app.ui.parent.ParentDashboardViewModel
@@ -66,6 +68,7 @@ fun MowziNavGraph(
             )
         ) { backStackEntry ->
             val conversationId = backStackEntry.arguments?.getString("conversationId") ?: return@composable
+            Log.d("wyl", "MowziNavGraph: Chat route, conversationId=$conversationId")
             ChatScreen(
                 onCharacterSwitch = {
                     navController.navigate(Route.CharacterSelect.path) {

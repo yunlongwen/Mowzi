@@ -69,7 +69,7 @@ class CharacterSelectViewModelTest {
     fun `selectCharacter success creates conversation`() = runTest {
         val character = testCharacters[0]
         whenever(api.createConversation(any())).thenReturn(
-            Response.success(ConversationResponse(id = "conv-1", characterId = "1", title = "新对话", status = "active", createdAt = 0L, updatedAt = 0L))
+            Response.success(ConversationResponse(id = "conv-1", characterId = "1", title = "新对话", status = "active", createdAt = "2024-01-01T00:00:00Z", updatedAt = "2024-01-01T00:00:00Z"))
         )
         viewModel.selectCharacter(character)
         advanceUntilIdle()
@@ -112,7 +112,7 @@ class CharacterSelectViewModelTest {
     fun `clearConversationNavigation resets conversationId`() = runTest {
         val character = testCharacters[0]
         whenever(api.createConversation(any())).thenReturn(
-            Response.success(ConversationResponse(id = "conv-1", characterId = "1", title = "新对话", status = "active", createdAt = 0L, updatedAt = 0L))
+            Response.success(ConversationResponse(id = "conv-1", characterId = "1", title = "新对话", status = "active", createdAt = "2024-01-01T00:00:00Z", updatedAt = "2024-01-01T00:00:00Z"))
         )
         viewModel.selectCharacter(character)
         advanceUntilIdle()

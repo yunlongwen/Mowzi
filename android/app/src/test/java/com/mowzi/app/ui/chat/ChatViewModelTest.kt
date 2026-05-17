@@ -7,6 +7,7 @@ import com.mowzi.app.data.local.entity.CachedMessageEntity
 import com.mowzi.app.data.remote.dto.ChatStreamChunk
 import com.mowzi.app.data.repository.ChatRepository
 import com.mowzi.app.speech.XfyunSpeechService
+import androidx.lifecycle.SavedStateHandle
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
@@ -35,12 +36,12 @@ class ChatViewModelTest {
     @Before
     fun setup() {
         whenever(chatRepository.getMessages(any())).thenReturn(messagesFlow)
-        whenever(audioRecorder.startRecording()).thenReturn(flow { })
         whenever(audioRecorder.getAccumulatedPcmData()).thenReturn(ByteArray(0))
     }
 
     private fun createViewModel(): ChatViewModel {
-        return ChatViewModel(chatRepository, audioRecorder, audioPlayer, speechService)
+        val savedStateHandle: SavedStateHandle = mock()
+        return ChatViewModel(chatRepository, audioRecorder, audioPlayer, speechService, savedStateHandle)
     }
 
     @Test

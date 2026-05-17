@@ -12,3 +12,14 @@ data class ActiveConversationResponse(
     val updatedAt: Long,
     val lastMessageAt: Long
 )
+
+@Serializable
+data class NullableActiveConversationResponse(
+    val id: String? = null,
+    val characterId: String? = null,
+    val title: String? = null,
+    val status: String? = null,
+    val createdAt: Long? = null,
+    val updatedAt: Long? = null,
+    val lastMessageAt: Long? = null
+)

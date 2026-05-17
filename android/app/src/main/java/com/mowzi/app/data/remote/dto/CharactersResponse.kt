@@ -11,6 +11,7 @@ data class CharactersResponse(
 data class CharacterDto(
     val id: String,
     val name: String,
-    val avatarUrl: String,
+    @kotlinx.serialization.SerialName("avatar_url")
+    val avatarUrl: String? = null,
     val description: String
 )

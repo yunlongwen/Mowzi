@@ -1,6 +1,7 @@
 package com.mowzi.app.ui.chat
 
 import android.Manifest
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -13,6 +14,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,6 +63,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -74,21 +78,25 @@ fun ChatScreen(
     characterName: String = "Mowzi",
     onCharacterSwitch: () -> Unit = {}
 ) {
+    Log.d("wyl", "ChatScreen: COMPOSABLE ENTERED")
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var textInput by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val context = LocalContext.current
+    Log.d("wyl", "ChatScreen: viewModel=${viewModel}, uiState conversationId=${uiState.currentConversationId}")
 
     val audioPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
+        Log.d("wyl", "ChatScreen: audio permission result=$granted")
         if (granted) {
             viewModel.startRecording()
         }
     }
 
     LaunchedEffect(uiState.messages.size, uiState.currentStreamingText) {
+        Log.d("wyl", "ChatScreen: messages.size=${uiState.messages.size}, streamingText=${uiState.currentStreamingText}")
         if (uiState.messages.isNotEmpty()) {
             listState.animateScrollToItem(uiState.messages.size - 1)
         }
@@ -405,6 +413,7 @@ private fun VoiceButton(
     ) {
         IconButton(
             onClick = {
+                Log.d("wyl", "VoiceButton: onClick, recordingState=$recordingState")
                 when (recordingState) {
                     RecordingState.Idle -> onStartRecording()
                     RecordingState.Recording -> onStopRecording()

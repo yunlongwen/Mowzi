@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.Instant
 import javax.inject.Inject
 
 data class ConversationListUiState(
@@ -89,15 +90,23 @@ class ConversationListViewModel @Inject constructor(
         }
     }
 
+    private fun parseTimestamp(str: String): Long {
+        return try {
+            Instant.parse(str).toEpochMilli()
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
+    }
+
     private fun ConversationResponse.toEntity(): ConversationEntity {
         return ConversationEntity(
             id = id.toString(),
             characterId = characterId.toString(),
             title = title ?: "新对话",
             status = status,
-            createdAt = createdAt,
-            updatedAt = updatedAt,
-            lastMessageAt = lastMessageAt
+            createdAt = parseTimestamp(createdAt),
+            updatedAt = parseTimestamp(updatedAt),
+            lastMessageAt = parseTimestamp(lastMessageAt)
         )
     }
 }

@@ -36,9 +36,9 @@ class ConversationRepositoryImplTest {
         characterId = "10",
         title = "Test Conversation",
         status = "active",
-        createdAt = 1000L,
-        updatedAt = 2000L,
-        lastMessageAt = 1500L
+        createdAt = "2024-01-01T00:00:00Z",
+        updatedAt = "2024-01-01T00:00:00Z",
+        lastMessageAt = "2024-01-01T00:00:00Z"
     )
 
     @Before

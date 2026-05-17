@@ -158,6 +158,7 @@ class XfyunSpeechService @Inject constructor(
         recognizer.setParameter(SpeechConstant.VAD_BOS, "4000")
         recognizer.setParameter(SpeechConstant.VAD_EOS, "1000")
         recognizer.setParameter(SpeechConstant.ASR_PTT, "1")
+        recognizer.setParameter("sample_rate", "16000")
     }
 
     // ---- TTS (语音合成) ----

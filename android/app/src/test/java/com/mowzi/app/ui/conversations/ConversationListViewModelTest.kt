@@ -24,15 +24,15 @@ class ConversationListViewModelTest {
 
     private val activeConversation = ConversationResponse(
         id = "1", characterId = "10", title = "Active Chat",
-        status = "active", createdAt = 1000L, updatedAt = 2000L, lastMessageAt = 1500L
+        status = "active", createdAt = "2024-01-01T00:00:00Z", updatedAt = "2024-01-01T00:00:00Z", lastMessageAt = "2024-01-01T00:00:00Z"
     )
     private val idleConversation = ConversationResponse(
         id = "2", characterId = "10", title = "Paused Chat",
-        status = "idle", createdAt = 3000L, updatedAt = 4000L, lastMessageAt = 3500L
+        status = "idle", createdAt = "2024-01-01T00:00:00Z", updatedAt = "2024-01-01T00:00:00Z", lastMessageAt = "2024-01-01T00:00:00Z"
     )
     private val archivedConversation = ConversationResponse(
         id = "3", characterId = "10", title = "Archived Chat",
-        status = "archived", createdAt = 5000L, updatedAt = 6000L, lastMessageAt = 5500L
+        status = "archived", createdAt = "2024-01-01T00:00:00Z", updatedAt = "2024-01-01T00:00:00Z", lastMessageAt = "2024-01-01T00:00:00Z"
     )
 
     private suspend fun setupDefaultMocks() {

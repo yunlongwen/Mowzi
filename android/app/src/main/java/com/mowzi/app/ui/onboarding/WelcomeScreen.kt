@@ -1,5 +1,6 @@
 package com.mowzi.app.ui.onboarding
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,14 +49,20 @@ fun WelcomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showSettings by remember { mutableStateOf(false) }
 
+    Log.d("wyl", "WelcomeScreen: uiState changed - hasToken=${uiState.hasToken}, isCheckingActive=${uiState.isCheckingActive}, activeConversationId=${uiState.activeConversationId}, registered=${uiState.registered}, errorMessage=${uiState.errorMessage}")
+
     LaunchedEffect(uiState.registered) {
+        Log.d("wyl", "WelcomeScreen: LaunchedEffect uiState.registered=${uiState.registered}")
         if (uiState.registered) {
+            Log.d("wyl", "WelcomeScreen: navigating to character select (registered)")
             onGoToCharacterSelect()
         }
     }
 
     LaunchedEffect(uiState.activeConversationId) {
+        Log.d("wyl", "WelcomeScreen: LaunchedEffect uiState.activeConversationId=${uiState.activeConversationId}")
         uiState.activeConversationId?.let { convId ->
+            Log.d("wyl", "WelcomeScreen: navigating to chat with conversationId=$convId")
             onHasActiveConversation(convId)
         }
     }
@@ -66,20 +73,28 @@ fun WelcomeScreen(
             .padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
+        Log.d("wyl", "WelcomeScreen: entering when, hasToken=${uiState.hasToken}, isCheckingActive=${uiState.isCheckingActive}")
         when {
             uiState.hasToken == null || uiState.isCheckingActive -> {
+                Log.d("wyl", "WelcomeScreen: branch - loading (hasToken=null or isCheckingActive=true)")
                 CircularProgressIndicator(modifier = Modifier.size(48.dp))
             }
 
             uiState.hasToken == true && uiState.activeConversationId == null -> {
+                Log.d("wyl", "WelcomeScreen: branch - hasToken=true, no activeConversationId, navigate to character select")
                 LaunchedEffect(Unit) { onGoToCharacterSelect() }
             }
 
             uiState.hasToken == true -> {
-                CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                Log.d("wyl", "WelcomeScreen: branch - hasToken=true, has activeConversationId=${uiState.activeConversationId}")
+                LaunchedEffect(Unit) {
+                    uiState.activeConversationId?.let { onHasActiveConversation(it) }
+                        ?: onGoToCharacterSelect()
+                }
             }
 
             else -> {
+                Log.d("wyl", "WelcomeScreen: branch - else (no token), show welcome content, errorMessage=${uiState.errorMessage}")
                 if (showSettings) {
                     ServerSettingsContent(
                         currentUrl = uiState.serverUrl,
