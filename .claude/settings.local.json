@@ -27,7 +27,10 @@
       "Bash(python -c ' *)",
       "Bash(python -c \"from app.database import Base; import app.models; print\\('Tables:', list\\(Base.metadata.tables.keys\\(\\)\\)\\)\")",
       "Bash(python -m pytest tests/test_auth.py -v --tb=short)",
-      "Bash(python -m pytest tests/test_health.py -v)"
+      "Bash(python -m pytest tests/test_health.py -v)",
+      "Bash(python -m pytest tests/test_stt.py -v)",
+      "Bash(python -m pytest tests/test_stt.py::TestSTTEndpoint::test_stt_too_large_audio -v -s)",
+      "Bash(python -m pytest tests/ -v --tb=short)"
     ]
   }
 }

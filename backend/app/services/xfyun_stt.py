@@ -25,7 +25,8 @@ class XfyunSTTService:
             Tuple of (authorization, timestamp)
         """
         timestamp = str(int(time.time()))
-        signature_origin = f"host: iat-api.xfyun.cn\ndate: {timestamp}\nGET /v2/iat HTTP/1.1"
+        # XFYUN requires CRLF line endings in signature origin
+        signature_origin = f"host: iat-api.xfyun.cn\r\ndate: {timestamp}\r\nGET /v2/iat HTTP/1.1"
         signature = hmac.new(
             self.api_secret.encode(),
             signature_origin.encode(),
