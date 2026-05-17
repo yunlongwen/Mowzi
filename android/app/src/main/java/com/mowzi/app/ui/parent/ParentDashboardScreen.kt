@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -121,9 +122,13 @@ fun ParentDashboardScreen(
                     .padding(paddingValues)
             ) {
                 // Tab row
-                TabRow(
-                    selectedTabIndex = selectedTab,
-                    modifier = Modifier.fillMaxWidth()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     TabItem(
                         title = "使用限制",
@@ -203,23 +208,6 @@ private fun TabItem(
             style = MaterialTheme.typography.labelLarge,
             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         )
-    }
-}
-
-@Composable
-private fun TabRow(
-    selectedTabIndex: Int,
-    modifier: Modifier = Modifier
-) {
-    // Using a simple row instead of TabRow to avoid version issues
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-        // Tabs are rendered by parent composable passing selectedTabIndex as state
     }
 }
 

@@ -10,6 +10,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import okhttp3.logging.HttpLoggingInterceptor.Level
@@ -42,7 +44,7 @@ object NetworkModule {
             .addInterceptor(authInterceptor)
             .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(0) // No timeout for streaming
+            .readTimeout(0, TimeUnit.SECONDS) // No timeout for streaming
             .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
@@ -57,18 +59,16 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(
         okHttpClient: OkHttpClient,
+        json: Json,
         dataStore: DataStore<Preferences>
     ): Retrofit {
-        val baseUrl = dataStore.data.first()[BASE_URL_KEY] ?: "https://api.mowzi.example.com"
+        val baseUrl = runBlocking {
+            dataStore.data.first()[BASE_URL_KEY] ?: "https://api.mowzi.example.com"
+        }
         return Retrofit.Builder()
             .baseUrl(baseUrl)
             .client(okHttpClient)
-            .addConverterFactory(
-                kotlinx.serialization.json.Json {
-                    ignoreUnknownKeys = true
-                    isLenient = true
-                }.asConverterFactory("application/json".toMediaType())
-            )
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
     }
 
@@ -81,6 +81,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideBaseUrl(dataStore: DataStore<Preferences>): String {
-        return dataStore.data.first()[BASE_URL_KEY] ?: "https://api.mowzi.example.com"
+        return runBlocking {
+            dataStore.data.first()[BASE_URL_KEY] ?: "https://api.mowzi.example.com"
+        }
     }
 }

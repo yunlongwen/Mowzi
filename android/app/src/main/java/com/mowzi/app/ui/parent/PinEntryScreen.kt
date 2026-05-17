@@ -116,27 +116,27 @@ fun PinEntryScreen(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    PinKey("1") { viewModel.onPinDigitEntered("1") }
-                    PinKey("2") { viewModel.onPinDigitEntered("2") }
-                    PinKey("3") { viewModel.onPinDigitEntered("3") }
+                    PinKey("1", onClick = { viewModel.onPinDigitEntered("1") })
+                    PinKey("2", onClick = { viewModel.onPinDigitEntered("2") })
+                    PinKey("3", onClick = { viewModel.onPinDigitEntered("3") })
                 }
 
                 // Row 4-5-6
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    PinKey("4") { viewModel.onPinDigitEntered("4") }
-                    PinKey("5") { viewModel.onPinDigitEntered("5") }
-                    PinKey("6") { viewModel.onPinDigitEntered("6") }
+                    PinKey("4", onClick = { viewModel.onPinDigitEntered("4") })
+                    PinKey("5", onClick = { viewModel.onPinDigitEntered("5") })
+                    PinKey("6", onClick = { viewModel.onPinDigitEntered("6") })
                 }
 
                 // Row 7-8-9
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    PinKey("7") { viewModel.onPinDigitEntered("7") }
-                    PinKey("8") { viewModel.onPinDigitEntered("8") }
-                    PinKey("9") { viewModel.onPinDigitEntered("9") }
+                    PinKey("7", onClick = { viewModel.onPinDigitEntered("7") })
+                    PinKey("8", onClick = { viewModel.onPinDigitEntered("8") })
+                    PinKey("9", onClick = { viewModel.onPinDigitEntered("9") })
                 }
 
                 // Row back-0-submit
@@ -160,7 +160,7 @@ fun PinEntryScreen(
                         )
                     }
 
-                    PinKey("0") { viewModel.onPinDigitEntered("0") }
+                    PinKey("0", onClick = { viewModel.onPinDigitEntered("0") })
 
                     // Submit button
                     Box(

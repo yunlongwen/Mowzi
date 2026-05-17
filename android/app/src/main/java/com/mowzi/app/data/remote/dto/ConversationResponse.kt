@@ -9,5 +9,6 @@ data class ConversationResponse(
     val title: String,
     val status: String,
     val createdAt: Long,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val lastMessageAt: Long = 0L
 )
