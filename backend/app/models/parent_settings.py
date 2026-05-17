@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Time
+from sqlalchemy import Column, Integer, String, Time, DateTime
 
 from app.database import Base
 
@@ -8,6 +8,8 @@ class ParentSettings(Base):
 
     id = Column(Integer, primary_key=True, default=1)  # Fixed id=1
     pin_hash = Column(String, nullable=False)
+    pin_attempts = Column(Integer, default=0, nullable=False)
+    pin_locked_until = Column(DateTime, nullable=True)
     daily_limit_min = Column(Integer, nullable=True)
     session_limit_min = Column(Integer, nullable=True)
     blocked_hours_start = Column(Time, nullable=True)

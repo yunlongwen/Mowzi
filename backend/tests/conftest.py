@@ -1,14 +1,20 @@
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 from app.database import Base, get_db
-from app.main import app
+import app.models  # Import all models to register them with Base.metadata
+from app.main import app as fastapi_app
 
 
 @pytest.fixture
 def db_session():
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -21,6 +27,6 @@ def client(db_session):
     def override_get_db():
         yield db_session
 
-    app.dependency_overrides[get_db] = override_get_db
-    yield TestClient(app)
-    app.dependency_overrides.clear()
+    fastapi_app.dependency_overrides[get_db] = override_get_db
+    yield TestClient(fastapi_app)
+    fastapi_app.dependency_overrides.clear()

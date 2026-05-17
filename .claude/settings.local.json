@@ -19,7 +19,15 @@
       "Bash(timeout 5 python -c \"import uvicorn; from app.main import app; uvicorn.run\\(app, host='127.0.0.1', port=8000\\)\")",
       "Bash(curl -s http://127.0.0.1:8000/health)",
       "Bash(python -c \"from app.schemas import ErrorCode; print\\([x for x in dir\\(ErrorCode\\) if not x.startswith\\('_'\\)]\\)\")",
-      "Bash(python -c \"from app.database import engine; print\\(engine.url\\)\")"
+      "Bash(python -c \"from app.database import engine; print\\(engine.url\\)\")",
+      "Bash(python -m pytest tests/test_auth.py -v)",
+      "Bash(python -c \"from app.api.router import api_router; print\\(api_router.routes\\)\")",
+      "Bash(python -m pytest tests/test_auth.py::TestDeviceRegister::test_device_register_new -v --tb=short)",
+      "Bash(python -c \"from app.api.router import api_router; print\\([r.path for r in api_router.routes]\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"from app.database import Base; import app.models; print\\('Tables:', list\\(Base.metadata.tables.keys\\(\\)\\)\\)\")",
+      "Bash(python -m pytest tests/test_auth.py -v --tb=short)",
+      "Bash(python -m pytest tests/test_health.py -v)"
     ]
   }
 }
