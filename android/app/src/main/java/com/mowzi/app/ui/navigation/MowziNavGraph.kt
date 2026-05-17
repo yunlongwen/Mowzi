@@ -6,6 +6,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.mowzi.app.ui.characters.CharacterSelectScreen
 
 sealed class Route(val path: String) {
     data object Onboarding : Route("onboarding")
@@ -21,7 +22,7 @@ sealed class Route(val path: String) {
 @Composable
 fun MowziNavGraph(
     navController: NavHostController,
-    startDestination: String = Route.Onboarding.path
+    startDestination: String = Route.CharacterSelect.path
 ) {
     NavHost(
         navController = navController,
@@ -32,7 +33,7 @@ fun MowziNavGraph(
         }
 
         composable(Route.CharacterSelect.path) {
-            // TODO: Implement character selection screen
+            CharacterSelectScreen(navController = navController)
         }
 
         composable(
