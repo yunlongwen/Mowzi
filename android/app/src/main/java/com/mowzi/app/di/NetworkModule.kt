@@ -9,8 +9,6 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import okhttp3.logging.HttpLoggingInterceptor.Level
@@ -18,7 +16,6 @@ import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
-import kotlinx.coroutines.flow.map
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -46,11 +43,7 @@ object NetworkModule {
         okHttpClient: OkHttpClient,
         dataStore: DataStore<Preferences>
     ): Retrofit {
-        val baseUrl = runBlocking {
-            dataStore.data.map { preferences ->
-                preferences[BASE_URL_KEY] ?: "https://api.mowzi.example.com"
-            }.first()
-        }
+        val baseUrl = dataStore.data.first()[BASE_URL_KEY] ?: "https://api.mowzi.example.com"
         return Retrofit.Builder()
             .baseUrl(baseUrl)
             .client(okHttpClient)
