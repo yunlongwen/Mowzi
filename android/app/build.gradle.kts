@@ -110,5 +110,6 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation("androidx.arch.core:core-testing:2.2.0")
     testImplementation("com.google.dagger:hilt-android-testing:2.52")
+    testImplementation("androidx.datastore:datastore-preferences-core:1.1.1")
     kspTest("com.google.dagger:hilt-compiler:2.52")
 }
