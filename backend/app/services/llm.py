@@ -41,6 +41,24 @@ class LLMService:
         self.client = AsyncOpenAI(base_url=api_url, api_key=api_key)
         self.model = model
 
+    async def single_call(self, prompt: str, max_tokens: int = 300) -> str:
+        """单次LLM调用（非流式），用于记忆提取和摘要等场景。
+
+        Args:
+            prompt: 提示词
+            max_tokens: 最大返回token数
+
+        Returns:
+            LLM回复的文本内容
+        """
+        response = await self.client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens,
+            stream=False
+        )
+        return response.choices[0].message.content
+
     async def stream_chat(
         self,
         messages: List[Dict[str, str]],
