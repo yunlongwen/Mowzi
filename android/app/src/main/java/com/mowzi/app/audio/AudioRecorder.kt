@@ -5,6 +5,8 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.sqrt
 
@@ -14,11 +16,16 @@ import kotlin.math.sqrt
  */
 class AudioRecorder(
     private val silenceThreshold: Double = 200.0,
-    private val silenceTimeoutMs: Long = 3000L
+    private val silenceTimeoutMs: Long = 3000L,
+    private val maxDurationMs: Long = 60000L // 60 seconds max
 ) {
     private var recorder: android.media.AudioRecord? = null
     private val isRecording = AtomicBoolean(false)
     private var lastSoundTime = 0L
+    private var recordingStartTime = 0L
+
+    // Accumulated PCM data (as bytes for STT)
+    private val accumulatedPcmData = mutableListOf<ByteArray>()
 
     companion object {
         private const val SAMPLE_RATE = 16000
@@ -46,6 +53,9 @@ class AudioRecorder(
 
         recorder = audioRecord
         isRecording.set(true)
+        recordingStartTime = System.currentTimeMillis()
+        lastSoundTime = 0L
+        accumulatedPcmData.clear()
         audioRecord.startRecording()
 
         val buffer = ShortArray(bufferSize)
@@ -62,11 +72,23 @@ class AudioRecorder(
                         lastSoundTime = System.currentTimeMillis()
                     }
 
+                    // Accumulate PCM data as bytes
+                    val byteBuffer = ByteBuffer.allocate(read * 2).order(ByteOrder.LITTLE_ENDIAN)
+                    for (i in 0 until read) {
+                        byteBuffer.putShort(chunk[i])
+                    }
+                    accumulatedPcmData.add(byteBuffer.array())
+
                     trySend(chunk)
 
                     // Auto-stop on silence timeout
                     if (lastSoundTime > 0 &&
                         System.currentTimeMillis() - lastSoundTime > silenceTimeoutMs) {
+                        break
+                    }
+
+                    // Hard stop on max duration (60 seconds)
+                    if (System.currentTimeMillis() - recordingStartTime > maxDurationMs) {
                         break
                     }
                 }
@@ -78,6 +100,13 @@ class AudioRecorder(
             isRecording.set(false)
         }
         close()
+    }
+
+    /**
+     * Returns accumulated PCM audio data.
+     */
+    fun getAccumulatedPcmData(): ByteArray {
+        return accumulatedPcmData.fold(ByteArray(0)) { acc, bytes -> acc + bytes }
     }
 
     private fun calculateRms(buffer: ShortArray, length: Int): Double {

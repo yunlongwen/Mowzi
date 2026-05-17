@@ -1,5 +1,6 @@
 package com.mowzi.app.data.repository
 
+import com.mowzi.app.audio.OpusEncoder
 import com.mowzi.app.data.local.dao.MessageDao
 import com.mowzi.app.data.local.entity.CachedMessageEntity
 import com.mowzi.app.data.remote.MowziApi
@@ -32,36 +33,26 @@ class ChatRepository @Inject constructor(
     private val json: Json,
     private val baseUrl: String
 ) {
+    private val opusEncoder = OpusEncoder()
+
     /**
-     * Converts PCM audio data to Opus format.
+     * Converts PCM audio data to Opus format using the Concentus Opus encoder.
      */
     suspend fun pcmToOpus(pcmData: ByteArray): ByteArray = withContext(Dispatchers.Default) {
-        // Convert bytes to shorts for Opus encoder
-        val shorts = ShortArray(pcmData.size / 2)
-        java.nio.ByteBuffer.wrap(pcmData)
-            .order(java.nio.ByteOrder.LITTLE_ENDIAN)
-            .asShortBuffer()
-            .get(shorts)
-
-        // Use Android's native Opus encoder via system library
-        val outputStream = ByteArrayOutputStream()
+        val output = ByteArrayOutputStream()
 
         // Encode in 60ms frames (960 samples at 16kHz)
         val frameSize = 960
         var offset = 0
 
         while (offset + frameSize * 2 <= pcmData.size) {
-            val frame = ShortArray(frameSize)
-            val byteBuffer = java.nio.ByteBuffer.wrap(pcmData, offset, frameSize * 2)
-                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
-            byteBuffer.asShortBuffer().get(frame)
-
-            // Encode frame (simplified - actual implementation would use native Opus)
-            // For now, pass raw PCM - backend handles opus decoding
+            val frameData = pcmData.copyOfRange(offset, offset + frameSize * 2)
+            val encoded = opusEncoder.encodeFromBytes(frameData)
+            output.write(encoded)
             offset += frameSize * 2
         }
 
-        pcmData // Return original PCM - backend handles conversion
+        output.toByteArray()
     }
 
     /**

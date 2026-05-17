@@ -117,7 +117,7 @@ class ChatViewModel @Inject constructor(
         recordingJob = viewModelScope.launch {
             _uiState.update { it.copy(recordingState = RecordingState.Recording) }
             audioRecorder.startRecording().collect { pcmChunk ->
-                // Handle PCM chunk if needed for real-time processing
+                // PCM chunks are accumulated in AudioRecorder
             }
         }
     }
@@ -130,13 +130,10 @@ class ChatViewModel @Inject constructor(
         recordingJob = viewModelScope.launch {
             _uiState.update { it.copy(recordingState = RecordingState.Processing) }
 
-            val pcmData = mutableListOf<ByteArray>()
             audioRecorder.stopRecording()
 
-            // Collect accumulated audio data
-            val audioBytes = pcmData.fold(ByteArray(0)) { acc, bytes ->
-                acc + bytes
-            }
+            // Get accumulated audio data from recorder
+            val audioBytes = audioRecorder.getAccumulatedPcmData()
 
             if (audioBytes.isEmpty()) {
                 _uiState.update {
@@ -276,6 +273,14 @@ class ChatViewModel @Inject constructor(
                 // Update message content
                 updateMessageContent(messageId, newContent)
             }
+            "text_done" -> {
+                // Text streaming complete, audio may still come
+                val newContent = chunk.content ?: _uiState.value.currentStreamingText
+                _uiState.update {
+                    it.copy(currentStreamingText = newContent)
+                }
+                updateMessageContent(messageId, newContent)
+            }
             "sentence_audio" -> {
                 // Enqueue audio for playback
                 chunk.audioData?.let { audioBase64 ->
@@ -284,6 +289,17 @@ class ChatViewModel @Inject constructor(
             }
             "sentence_end" -> {
                 // Sentence complete, could update UI
+            }
+            "done" -> {
+                _uiState.update { it.copy(streamingState = StreamingState.Complete) }
+            }
+            "error" -> {
+                _uiState.update {
+                    it.copy(
+                        streamingState = StreamingState.Idle,
+                        errorMessage = chunk.content ?: "Stream error"
+                    )
+                }
             }
             "stream_end" -> {
                 _uiState.update { it.copy(streamingState = StreamingState.Complete) }
