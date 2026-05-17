@@ -57,8 +57,9 @@ class AudioRecorder(
         Log.d(TAG, "AudioRecorder: AudioRecord created, state=${audioRecord.state}")
 
         if (audioRecord.state != android.media.AudioRecord.STATE_INITIALIZED) {
-            Log.d(TAG, "AudioRecorder: AudioRecord NOT initialized")
+            Log.e(TAG, "AudioRecorder: AudioRecord NOT initialized, state=${audioRecord.state}")
             handlerThread?.quit()
+            isRecording.set(false)
             return
         }
 
@@ -70,7 +71,7 @@ class AudioRecorder(
             accumulatedPcmData.clear()
         }
         audioRecord.startRecording()
-        Log.d(TAG, "AudioRecorder: recording started")
+        Log.d(TAG, "AudioRecorder: recording started, isRecording=${isRecording.get()}")
 
         val buffer = ShortArray(bufferSize)
 

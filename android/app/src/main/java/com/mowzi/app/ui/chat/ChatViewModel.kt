@@ -119,7 +119,7 @@ class ChatViewModel @Inject constructor(
         recordingJob = viewModelScope.launch {
             _uiState.update { it.copy(recordingState = RecordingState.Recording) }
             Log.d(TAG, "startRecording: state set to Recording")
-            // 不再 collect，音频数据已在 AudioRecorder 内部累积
+            audioRecorder.startRecording()
         }
     }
 
