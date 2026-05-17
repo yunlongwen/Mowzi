@@ -35,13 +35,13 @@ async def get_characters(db: Session = Depends(get_db)):
 async def register_device(request: DeviceRegisterRequest, db: Session = Depends(get_db)):
     """Register a device and return a device token."""
     # Check if device_id is already registered
-    child = db.query(ChildProfile).filter(ChildProfile.device_id == request.device_id).first()
+    child = db.query(ChildProfile).filter(ChildProfile.device_id == request.deviceId).first()
 
     if not child:
         # Create new child profile
         child = ChildProfile(
-            device_id=request.device_id,
-            name=request.child_name or "小朋友"
+            device_id=request.deviceId,
+            name=request.deviceName or "小朋友"
         )
         db.add(child)
         db.commit()
@@ -53,4 +53,4 @@ async def register_device(request: DeviceRegisterRequest, db: Session = Depends(
     # Register token with child_id
     register_device_token(token, child.id)
 
-    return {"device_token": token}
+    return DeviceRegisterResponse(success=True, deviceToken=token)

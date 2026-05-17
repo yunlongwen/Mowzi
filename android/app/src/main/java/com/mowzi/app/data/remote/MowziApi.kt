@@ -11,33 +11,22 @@ import com.mowzi.app.data.remote.dto.DeviceRegisterRequest
 import com.mowzi.app.data.remote.dto.DeviceRegisterResponse
 import com.mowzi.app.data.remote.dto.PinRequest
 import com.mowzi.app.data.remote.dto.ResumeConversationResponse
-import com.mowzi.app.data.remote.dto.SttResponse
 import com.mowzi.app.data.remote.dto.ParentSettingsResponse
 import com.mowzi.app.data.remote.dto.ParentSettingsRequest
 import com.mowzi.app.data.remote.dto.ParentUsageResponse
 import com.mowzi.app.data.remote.dto.ParentConversationsResponse
 import com.mowzi.app.data.remote.dto.ParentMessagesResponse
-import okhttp3.MultipartBody
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
-import retrofit2.http.Multipart
 import retrofit2.http.POST
-import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Streaming
 import retrofit2.http.PUT
 
 interface MowziApi {
-    @Multipart
-    @POST("/api/v1/chat/stt")
-    suspend fun speechToText(
-        @Part audio: MultipartBody.Part,
-        @Part("format") format: String
-    ): Response<SttResponse>
-
     @Streaming
     @POST("/api/v1/chat/stream")
     fun chatStream(@Body request: ChatStreamRequest): retrofit2.Call<ResponseBody>

@@ -1,5 +1,8 @@
 package com.mowzi.app.ui.chat
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -57,9 +60,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.content.PermissionChecker
 import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
@@ -72,6 +78,15 @@ fun ChatScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var textInput by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val context = LocalContext.current
+
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            viewModel.startRecording()
+        }
+    }
 
     LaunchedEffect(uiState.messages.size, uiState.currentStreamingText) {
         if (uiState.messages.isNotEmpty()) {
@@ -140,7 +155,16 @@ fun ChatScreen(
                 textInput = textInput,
                 onTextChange = { textInput = it },
                 recordingState = uiState.recordingState,
-                onStartRecording = { viewModel.startRecording() },
+                onStartRecording = {
+                    val hasPermission = ContextCompat.checkSelfPermission(
+                        context, Manifest.permission.RECORD_AUDIO
+                    ) == PermissionChecker.PERMISSION_GRANTED
+                    if (hasPermission) {
+                        viewModel.startRecording()
+                    } else {
+                        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                },
                 onStopRecording = { viewModel.stopRecordingAndSend() },
                 onCancelRecording = { viewModel.cancelRecording() },
                 onSendText = {

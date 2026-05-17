@@ -1,5 +1,7 @@
 package com.mowzi.app.ui.onboarding
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import com.mowzi.app.MainDispatcherRule
 import com.mowzi.app.data.remote.MowziApi
 import com.mowzi.app.data.remote.dto.ActiveConversationResponse
@@ -14,6 +16,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.*
 import retrofit2.Response
+import java.util.concurrent.atomic.AtomicReference
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WelcomeViewModelTest {
@@ -24,10 +27,23 @@ class WelcomeViewModelTest {
     private val tokenManager: TokenManager = mock()
     private val api: MowziApi = mock()
 
+    private fun createFakeDataStore(): DataStore<Preferences> {
+        val holder = AtomicReference<Preferences>(mock())
+        return object : DataStore<Preferences> {
+            override val data = kotlinx.coroutines.flow.flow { emit(holder.get()) }
+            override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+                val current = holder.get()
+                val new = transform(current)
+                holder.set(new)
+                return new
+            }
+        }
+    }
+
     @Test
     fun `init without token shows welcome`() = runTest {
         whenever(tokenManager.getDeviceToken()).thenReturn(null)
-        val viewModel = WelcomeViewModel(tokenManager, api)
+        val viewModel = WelcomeViewModel(tokenManager, api, createFakeDataStore())
         advanceUntilIdle()
         assertEquals(false, viewModel.uiState.value.hasToken)
     }
@@ -43,7 +59,7 @@ class WelcomeViewModelTest {
                 )
             )
         )
-        val viewModel = WelcomeViewModel(tokenManager, api)
+        val viewModel = WelcomeViewModel(tokenManager, api, createFakeDataStore())
         advanceUntilIdle()
         assertEquals(true, viewModel.uiState.value.hasToken)
         assertEquals("conv1", viewModel.uiState.value.activeConversationId)
@@ -53,7 +69,7 @@ class WelcomeViewModelTest {
     fun `init with token but no active conversation`() = runTest {
         whenever(tokenManager.getDeviceToken()).thenReturn("existing-token")
         whenever(api.getActiveConversation()).thenReturn(Response.success(null))
-        val viewModel = WelcomeViewModel(tokenManager, api)
+        val viewModel = WelcomeViewModel(tokenManager, api, createFakeDataStore())
         advanceUntilIdle()
         assertEquals(true, viewModel.uiState.value.hasToken)
         assertNull(viewModel.uiState.value.activeConversationId)
@@ -62,7 +78,7 @@ class WelcomeViewModelTest {
     @Test
     fun `onChildNameChanged updates name`() = runTest {
         whenever(tokenManager.getDeviceToken()).thenReturn(null)
-        val viewModel = WelcomeViewModel(tokenManager, api)
+        val viewModel = WelcomeViewModel(tokenManager, api, createFakeDataStore())
         advanceUntilIdle()
         viewModel.onChildNameChanged("小明")
         assertEquals("小明", viewModel.uiState.value.childName)
@@ -71,7 +87,7 @@ class WelcomeViewModelTest {
     @Test
     fun `registerDevice with blank name shows error`() = runTest {
         whenever(tokenManager.getDeviceToken()).thenReturn(null)
-        val viewModel = WelcomeViewModel(tokenManager, api)
+        val viewModel = WelcomeViewModel(tokenManager, api, createFakeDataStore())
         advanceUntilIdle()
         viewModel.registerDevice()
         advanceUntilIdle()
@@ -82,7 +98,7 @@ class WelcomeViewModelTest {
     fun `registerDevice failure shows friendly error`() = runTest {
         whenever(tokenManager.getDeviceToken()).thenReturn(null)
         whenever(api.registerDevice(any())).thenThrow(RuntimeException("network error"))
-        val viewModel = WelcomeViewModel(tokenManager, api)
+        val viewModel = WelcomeViewModel(tokenManager, api, createFakeDataStore())
         advanceUntilIdle()
         viewModel.onChildNameChanged("小明")
         viewModel.registerDevice()
@@ -95,7 +111,7 @@ class WelcomeViewModelTest {
     fun `registerDevice server error shows friendly error`() = runTest {
         whenever(tokenManager.getDeviceToken()).thenReturn(null)
         whenever(api.registerDevice(any())).thenReturn(Response.error(500, "".toResponseBody()))
-        val viewModel = WelcomeViewModel(tokenManager, api)
+        val viewModel = WelcomeViewModel(tokenManager, api, createFakeDataStore())
         advanceUntilIdle()
         viewModel.onChildNameChanged("小明")
         viewModel.registerDevice()
@@ -106,7 +122,7 @@ class WelcomeViewModelTest {
     @Test
     fun `clearError resets error`() = runTest {
         whenever(tokenManager.getDeviceToken()).thenReturn(null)
-        val viewModel = WelcomeViewModel(tokenManager, api)
+        val viewModel = WelcomeViewModel(tokenManager, api, createFakeDataStore())
         advanceUntilIdle()
         viewModel.clearError()
         assertNull(viewModel.uiState.value.errorMessage)

@@ -1,5 +1,6 @@
 package com.mowzi.app.ui.chat
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mowzi.app.audio.AudioPlayer
@@ -7,6 +8,7 @@ import com.mowzi.app.audio.AudioRecorder
 import com.mowzi.app.data.local.entity.CachedMessageEntity
 import com.mowzi.app.data.remote.dto.ChatStreamChunk
 import com.mowzi.app.data.repository.ChatRepository
+import com.mowzi.app.speech.XfyunSpeechService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -56,14 +58,21 @@ sealed class StreamingState {
 class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val audioRecorder: AudioRecorder,
-    private val audioPlayer: AudioPlayer
+    private val audioPlayer: AudioPlayer,
+    private val speechService: XfyunSpeechService
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "ChatViewModel"
+    }
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private var recordingJob: Job? = null
     private var streamingJob: Job? = null
+    private val sentenceBuffer = StringBuilder()
+    private val sentenceEndingRegex = Regex("[。！？…\\.!?]")
 
     fun setConversation(conversationId: String, characterId: String, characterName: String) {
         _uiState.update {
@@ -128,41 +137,44 @@ class ChatViewModel @Inject constructor(
         _uiState.update { it.copy(recordingState = RecordingState.Idle) }
     }
 
-    private suspend fun sendVoiceMessage(pcmData: ByteArray) {
-        try {
-            val text = withContext(Dispatchers.IO) {
-                chatRepository.speechToText(pcmData)
-            }
+    private fun sendVoiceMessage(pcmData: ByteArray) {
+        viewModelScope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    speechService.recognizeFromPcm(pcmData)
+                }
 
-            if (text.isBlank()) {
+                if (result.text.isBlank() || result.confidence < 0.3f) {
+                    _uiState.update {
+                        it.copy(
+                            recordingState = RecordingState.Idle,
+                            errorMessage = "没听清哦，再说一次吧？"
+                        )
+                    }
+                    return@launch
+                }
+
+                val userMessage = ChatMessageUi(
+                    id = UUID.randomUUID().toString(),
+                    role = "user",
+                    content = result.text
+                )
+                _uiState.update {
+                    it.copy(
+                        messages = it.messages + userMessage,
+                        recordingState = RecordingState.Idle
+                    )
+                }
+
+                sendTextMessage(result.text)
+            } catch (e: Exception) {
+                Log.e(TAG, "STT失败", e)
                 _uiState.update {
                     it.copy(
                         recordingState = RecordingState.Idle,
                         errorMessage = "没听清哦，再说一次吧？"
                     )
                 }
-                return
-            }
-
-            val userMessage = ChatMessageUi(
-                id = UUID.randomUUID().toString(),
-                role = "user",
-                content = text
-            )
-            _uiState.update {
-                it.copy(
-                    messages = it.messages + userMessage,
-                    recordingState = RecordingState.Idle
-                )
-            }
-
-            sendTextMessage(text)
-        } catch (e: Exception) {
-            _uiState.update {
-                it.copy(
-                    recordingState = RecordingState.Idle,
-                    errorMessage = "没听清哦，再说一次吧？"
-                )
             }
         }
     }
@@ -177,6 +189,7 @@ class ChatViewModel @Inject constructor(
                 return@launch
             }
 
+            sentenceBuffer.clear()
             _uiState.update {
                 it.copy(
                     streamingState = StreamingState.Streaming,
@@ -220,23 +233,17 @@ class ChatViewModel @Inject constructor(
     private fun handleStreamChunk(chunk: ChatStreamChunk, messageId: String) {
         when (chunk.type) {
             "text_chunk" -> {
-                val newContent = (_uiState.value.currentStreamingText ?: "") + (chunk.content ?: "")
+                val content = chunk.content ?: ""
+                val newContent = (_uiState.value.currentStreamingText ?: "") + content
                 _uiState.update { it.copy(currentStreamingText = newContent) }
                 updateMessageContent(messageId, newContent)
+                handleTextForTts(content)
             }
             "text_done" -> {
                 val newContent = chunk.content ?: _uiState.value.currentStreamingText
                 _uiState.update { it.copy(currentStreamingText = newContent) }
                 updateMessageContent(messageId, newContent)
-            }
-            "sentence_audio" -> {
-                chunk.audioData?.let { audioBase64 ->
-                    try {
-                        audioPlayer.enqueue(audioBase64)
-                    } catch (_: Exception) {
-                        // TTS合成失败 — 仅显示文字，不播放音频
-                    }
-                }
+                flushSentenceBuffer()
             }
             "done" -> {
                 _uiState.update { it.copy(streamingState = StreamingState.Complete) }
@@ -248,7 +255,6 @@ class ChatViewModel @Inject constructor(
                     msg.contains("USAGE_SESSION_LIMIT") -> "今天的时间用完啦，明天再来找毛仔吧！"
                     msg.contains("BLOCKED_HOURS") -> "毛仔休息啦，明天再来找我吧"
                     msg.contains("CONTENT_BLOCKED") -> "我们来聊点别的吧"
-                    msg.contains("XFYUN_QUOTA") -> "现在只能打字聊天哦"
                     else -> "毛仔在想呢，等一下再来找我吧"
                 }
 
@@ -263,6 +269,40 @@ class ChatViewModel @Inject constructor(
             }
             "stream_end" -> {
                 _uiState.update { it.copy(streamingState = StreamingState.Complete) }
+            }
+        }
+    }
+
+    private fun handleTextForTts(content: String) {
+        sentenceBuffer.append(content)
+        val match = sentenceEndingRegex.find(sentenceBuffer)
+        if (match != null) {
+            val endPos = match.range.last + 1
+            val sentence = sentenceBuffer.substring(0, endPos).trim()
+            sentenceBuffer.delete(0, endPos)
+            if (sentence.isNotEmpty()) {
+                synthesizeAndPlay(sentence)
+            }
+        }
+    }
+
+    private fun flushSentenceBuffer() {
+        val remaining = sentenceBuffer.toString().trim()
+        sentenceBuffer.clear()
+        if (remaining.isNotEmpty()) {
+            synthesizeAndPlay(remaining)
+        }
+    }
+
+    private fun synthesizeAndPlay(text: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val pcmData = speechService.synthesize(text)
+                if (pcmData != null) {
+                    audioPlayer.enqueuePcm(pcmData)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "TTS合成失败，跳过音频播放", e)
             }
         }
     }

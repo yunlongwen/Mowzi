@@ -63,7 +63,7 @@ object NetworkModule {
         dataStore: DataStore<Preferences>
     ): Retrofit {
         val baseUrl = runBlocking {
-            dataStore.data.first()[BASE_URL_KEY] ?: "https://api.mowzi.example.com"
+            dataStore.data.first()[BASE_URL_KEY] ?: "http://10.0.2.2:8000"
         }
         return Retrofit.Builder()
             .baseUrl(baseUrl)
@@ -82,7 +82,7 @@ object NetworkModule {
     @Singleton
     fun provideBaseUrl(dataStore: DataStore<Preferences>): String {
         return runBlocking {
-            dataStore.data.first()[BASE_URL_KEY] ?: "https://api.mowzi.example.com"
+            dataStore.data.first()[BASE_URL_KEY] ?: "http://10.0.2.2:8000"
         }
     }
 }

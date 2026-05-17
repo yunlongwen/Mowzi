@@ -6,6 +6,7 @@ import com.mowzi.app.audio.AudioRecorder
 import com.mowzi.app.data.local.entity.CachedMessageEntity
 import com.mowzi.app.data.remote.dto.ChatStreamChunk
 import com.mowzi.app.data.repository.ChatRepository
+import com.mowzi.app.speech.XfyunSpeechService
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
@@ -27,6 +28,7 @@ class ChatViewModelTest {
     private val chatRepository: ChatRepository = mock()
     private val audioRecorder: AudioRecorder = mock()
     private val audioPlayer: AudioPlayer = mock()
+    private val speechService: XfyunSpeechService = mock()
 
     private val messagesFlow = MutableStateFlow<List<CachedMessageEntity>>(emptyList())
 
@@ -38,7 +40,7 @@ class ChatViewModelTest {
     }
 
     private fun createViewModel(): ChatViewModel {
-        return ChatViewModel(chatRepository, audioRecorder, audioPlayer)
+        return ChatViewModel(chatRepository, audioRecorder, audioPlayer, speechService)
     }
 
     @Test
@@ -146,17 +148,17 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `error chunk with XFYUN_QUOTA shows text-only message`() = runTest {
+    fun `error chunk with STREAM_ERROR shows generic message`() = runTest {
         val vm = createViewModel()
         vm.setConversation("conv1", "char1", "毛仔")
         whenever(chatRepository.streamChat(any(), any(), any())).thenReturn(
             flow {
-                emit(ChatStreamChunk(type = "error", content = "XFYUN_QUOTA"))
+                emit(ChatStreamChunk(type = "error", content = "STREAM_ERROR"))
             }
         )
         vm.sendTextMessage("hi")
         advanceUntilIdle()
-        assertEquals("现在只能打字聊天哦", vm.uiState.value.errorMessage)
+        assertEquals("毛仔在想呢，等一下再来找我吧", vm.uiState.value.errorMessage)
     }
 
     @Test

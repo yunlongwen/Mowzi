@@ -13,12 +13,13 @@ class TestDeviceRegister:
         """Test registering a new device creates a new child profile."""
         response = client.post(
             "/api/v1/device/register",
-            json={"device_id": "test-device-001", "child_name": "小明"}
+            json={"deviceId": "test-device-001", "deviceName": "小明", "deviceModel": "test"}
         )
         assert response.status_code == 200
         data = response.json()
-        assert "device_token" in data
-        assert data["device_token"].startswith("dev_")
+        assert "deviceToken" in data
+        assert data["success"] is True
+        assert data["deviceToken"].startswith("dev_")
 
     def test_device_register_existing(self, client, db_session):
         """Test re-registering an existing device creates new token."""
@@ -26,18 +27,18 @@ class TestDeviceRegister:
         # First registration
         response1 = client.post(
             "/api/v1/device/register",
-            json={"device_id": device_id, "child_name": "小红"}
+            json={"deviceId": device_id, "deviceName": "小红", "deviceModel": "test"}
         )
         assert response1.status_code == 200
-        token1 = response1.json()["device_token"]
+        token1 = response1.json()["deviceToken"]
 
         # Second registration with same device_id
         response2 = client.post(
             "/api/v1/device/register",
-            json={"device_id": device_id, "child_name": "小红"}
+            json={"deviceId": device_id, "deviceName": "小红", "deviceModel": "test"}
         )
         assert response2.status_code == 200
-        token2 = response2.json()["device_token"]
+        token2 = response2.json()["deviceToken"]
 
         # Each registration generates a new token
         assert token1 != token2
@@ -45,14 +46,14 @@ class TestDeviceRegister:
         assert token2.startswith("dev_")
 
     def test_device_register_without_child_name(self, client, db_session):
-        """Test registering device without child_name uses default name."""
+        """Test registering device without deviceName uses default name."""
         response = client.post(
             "/api/v1/device/register",
-            json={"device_id": "test-device-003"}
+            json={"deviceId": "test-device-003"}
         )
         assert response.status_code == 200
         data = response.json()
-        assert "device_token" in data
+        assert "deviceToken" in data
 
 
 class TestParentAuth:
@@ -154,9 +155,9 @@ class TestTokenVerification:
         # Register device
         reg_response = client.post(
             "/api/v1/device/register",
-            json={"device_id": "test-device-004", "child_name": "测试"}
+            json={"deviceId": "test-device-004", "deviceName": "测试", "deviceModel": "test"}
         )
-        token = reg_response.json()["device_token"]
+        token = reg_response.json()["deviceToken"]
 
         # Verify using the token (mock auth endpoint for testing)
         from app.services.auth import verify_device_token_valid

@@ -1,14 +1,10 @@
-"""Chat schemas for STT and conversation endpoints."""
+"""Chat schemas for conversation endpoints."""
 
 from pydantic import BaseModel
 
 
-class STTRequest(BaseModel):
-    """Request model for speech-to-text."""
-    format: str = "opus"  # "opus" or "pcm"
-
-
-class STTResponse(BaseModel):
-    """Response model for speech-to-text."""
-    text: str  # Recognized text
-    confidence: float  # Average confidence score (0-1)
+class ChatStreamRequest(BaseModel):
+    """Request model for streaming chat — matches Android's ChatStreamRequest."""
+    text: str
+    conversationId: str | None = None
+    characterId: str | None = None

@@ -10,29 +10,29 @@
 
 **Android应用（Kotlin/Compose）+ Python FastAPI后端**
 
-应用端从不直接调用第三方API。所有外部服务调用（LLM、讯飞STT/TTS）均通过后端代理，后端持有所有API密钥、执行内容安全检查、管理对话记忆。
+语音识别（STT）和语音合成（TTS）在Android端通过讯飞MSC SDK本地完成，无需经过后端。后端负责LLM对话、记忆管理、内容安全、使用时长统计等核心逻辑。
 
 ```
-┌──────────────────────────┐
-│    Android应用 (Kotlin)   │
-│    Jetpack Compose + Hilt│
-│    仅与后端通信           │
-└────────────┬─────────────┘
-             │ HTTPS
+┌──────────────────────────────────────┐
+│        Android应用 (Kotlin)           │
+│    Jetpack Compose + Hilt            │
+│    ┌─────────────┐  ┌─────────────┐ │
+│    │ 讯飞MSC SDK  │  │ 讯飞MSC SDK  │ │
+│    │ 语音听写(STT)│  │ 语音合成(TTS)│ │
+│    └─────────────┘  └─────────────┘ │
+└────────────┬─────────────────────────┘
+             │ HTTPS (仅文字)
 ┌────────────▼─────────────┐     ┌──────────────┐
 │  后端 (FastAPI)          │────▶│ LLM API      │
-│  - API密钥管理           │────▶│ (OpenAI兼容)  │
+│  - API密钥管理           │────▶│ (MiniMax等)   │
 │  - 记忆管理              │     └──────────────┘
-│  - 内容安全检查          │     ┌──────────────┐
-│  - 使用时长统计          │────▶│ 讯飞语音听写  │
-│  - SQLite存储            │     └──────────────┘
-│                          │     ┌──────────────┐
-│                          │────▶│ 讯飞语音合成  │
-│                          │     └──────────────┘
+│  - 内容安全检查          │
+│  - 使用时长统计          │
+│  - SQLite存储            │
 └──────────────────────────┘
 ```
 
-部署在云服务器上，可从任何地方访问。
+部署在云服务器上，可从任何地方访问。语音识别和合成在设备端完成，首次使用需联网激活SDK，激活后可离线使用。
 
 ## 技术栈
 
@@ -44,7 +44,7 @@
 | 架构 | MVVM + Repository模式 | 清晰的职责分离 |
 | 依赖注入 | Hilt | Google推荐的DI框架 |
 | 网络 | Retrofit + OkHttp | 成熟的HTTP客户端，用于后端通信 |
-| 音频 | AudioRecord（录音）+ MediaPlayer（播放）+ android-opus-codec（Opus压缩） | Android内置API + 第三方Opus编解码库 |
+| 音频 | AudioRecord（录音）+ 讯飞MSC SDK（STT语音听写 + TTS语音合成） | 本地SDK完成语音识别与合成，首次激活后可离线使用，延迟更低 |
 | 本地存储 | Room（对话缓存）+ DataStore（设置） | 结构化数据 + 键值配置 |
 
 ### 后端
@@ -54,8 +54,8 @@
 | 框架 | Python FastAPI | 开发速度快、支持异步、支持SSE流式推送 |
 | 数据库 | SQLite via SQLAlchemy | 轻量级，适用于单家庭使用场景 |
 | LLM客户端 | OpenAI Python SDK（兼容模式） | 兼容任何OpenAI兼容的接口端点 |
-| 语音识别 | 讯飞语音听写WebSocket API | 中文语音识别效果最佳，支持流式，免费额度（500次/天） |
-| 语音合成 | 讯飞语音合成WebSocket API | 多音色预设，支持MP3/Opus输出，与STT同一平台 |
+| 语音识别 | Android端讯飞MSC SDK（语音听写） | 本地SDK完成识别，延迟更低，首次激活后可离线使用 |
+| 语音合成 | Android端讯飞MSC SDK（本地TTS） | 本地SDK完成合成，无需网络，多音色预设（xiaoyan/xiaofeng等） |
 | 认证 | 简单设备令牌 + 家长PIN码 | 适用于单家庭场景的轻量级认证 |
 
 ## 核心功能
@@ -66,19 +66,19 @@
 
 ```
 儿童按下麦克风 → 说话 → 应用录制PCM音频
-  → POST /api/v1/chat/stt { audio (multipart) }
-  → 后端代理至讯飞STT → 返回文字
+  → 讯飞MSC SDK本地语音听写 → 返回文字（本地完成，无需网络）
   → POST /api/v1/chat/stream { conversation_id, text }
   → 后端组装上下文（系统提示词 + 记忆 + 近期消息）
   → 后端调用LLM（流式）→ SSE推送文本片段至应用
-  → 每积累一个完整句子（句号/问号/感叹号/省略号）→ 后端调用讯飞TTS → SSE推送句子音频
+  → 应用端收到每个完整句子后 → 讯飞MSC SDK本地TTS合成 → 播放音频
   → 应用逐句显示文字 + 逐句播放音频（边生成边播放）
 ```
 
 **关键行为：**
 - 语音是默认输出方式；文字作为辅助显示
 - LLM流式输出：文字随生成实时显示
-- **按句TTS**：LLM流式输出时，以句号、问号、感叹号、省略号为分割点，每积累一个完整句子立即触发TTS合成，通过SSE推送音频。首次语音延迟从10-20秒降至2-4秒
+- **本地TTS**：LLM流式输出时，以句号、问号、感叹号、省略号为分割点，每积累一个完整句子立即触发本地TTS合成。首次语音延迟从10-20秒降至1-2秒
+- STT和TTS均在设备端完成，无需上传音频到后端，保护儿童隐私
 - 按住麦克风按钮录音，松开发送
 - 可选文字输入框，供喜欢打字的儿童使用
 - 应用端在LLM响应期间禁用麦克风按钮，防止并发请求
@@ -255,15 +255,17 @@ PUT  /api/v1/conversations/{id}/resume
 | STT识别失败/置信度低 | "没听清哦，再说一次吧？" | 显示重新录音按钮 |
 | 网络不可用 | "毛仔现在连不上，等一下再试" | 显示缓存的历史对话 |
 | SSE流中途断开 | "回答被打断了" | 保留已显示的文字 |
-| TTS合成失败 | （无提示） | 仅显示文字，不播放音频 |
+| TTS合成失败（本地SDK） | （无提示） | 仅显示文字，不播放音频 |
 | LLM调用失败 | "毛仔在想呢，等一下再来找我吧" | 显示重试按钮 |
 | 使用时长已到 | "今天的时间用完啦，明天再来找毛仔吧！" | 显示结束画面 |
 | 禁用时段 | "毛仔休息啦，XX点再来找我吧" | 显示倒计时到可用时段 |
-| 讯飞配额耗尽 | 自动切换为文字模式，显示"现在只能打字聊天哦" | 隐藏麦克风按钮 |
+| MSC SDK未激活 | 首次使用需联网激活 | 显示激活提示 |
 | 并发请求（上一条未完成） | （静默处理） | 麦克风按钮保持禁用状态 |
 
 **重试策略：**
-- STT、TTS、LLM调用失败：后端自动重试1次，间隔1秒
+- STT失败：Android端自动重试1次（SDK内部重连）
+- TTS失败：跳过该句音频，仅显示文字
+- LLM调用失败：后端自动重试1次，间隔1秒
 - 应用端网络请求失败：指数退避，最多2次，总等待不超过10秒
 - 重试仍然失败则显示上表中的友好提示
 
@@ -272,23 +274,16 @@ PUT  /api/v1/conversations/{id}/resume
 ### 聊天接口
 
 ```
-POST /api/v1/chat/stt
-  请求:  multipart/form-data { audio: file, format: "pcm"|"opus" }
-  响应: { text: str, confidence: float }
-
 POST /api/v1/chat/stream
   请求:  { conversation_id: str, text: str, character_id: str }
   响应: SSE流
     event: text_chunk      data: { content: str }
-    event: sentence_audio  data: { sentence_index: int, audio_base64: str, duration_ms: int }
     event: text_done       data: { full_text: str, message_id: str }
     event: error           data: { code: str, message: str }
     event: done            data: { message_id: str }
-
-POST /api/v1/chat/tts
-  请求:  { text: str, voice_name: str }
-  响应: { audio_base64: str, duration_ms: int }
 ```
+
+注意：STT和TTS均在Android端通过讯飞MSC SDK完成，不再经过后端。后端仅负责LLM流式对话。
 
 ### 家长接口
 
@@ -439,8 +434,8 @@ class UsageLog(Base):
 
 ## 非功能性需求
 
-- **延迟**：STT响应 < 2秒，首个LLM token < 3秒，按句TTS首句合成 < 2秒（Wi-Fi环境，测量点为应用端，音频长度 ≤ 10秒）
-- **离线**：离线时应用显示已缓存的对话；新建对话需要网络连接
+- **延迟**：STT响应 < 1秒（本地SDK），首个LLM token < 3秒，本地TTS首句合成 < 0.5秒
+- **离线**：语音识别和合成可离线使用（SDK首次激活后）；新建对话和LLM回复需要网络连接
 - **安全**：所有API密钥静态加密；所有后端通信使用HTTPS；PIN码哈希使用bcrypt存储
 - **可扩展性**：单家庭设计；SQLite即可满足（需启用WAL模式，设置 busy_timeout=5000ms）。数据库抽象层允许未来迁移至PostgreSQL
 
@@ -448,27 +443,23 @@ class UsageLog(Base):
 
 **录音参数：**
 - 采样率：16kHz，位深：16-bit，声道：单声道
-- 格式：PCM（本地录音）→ Opus压缩（上传传输）
+- 格式：PCM（本地录音，直接送入讯飞MSC SDK）
 - 最大录音时长：60秒，最小录音时长：0.5秒（低于此自动丢弃）
 - 静音检测：连续3秒无声自动停止录音并发送
-- 上传方式：`multipart/form-data`（非base64 JSON），减少33%带宽开销
 
 **音频全链路格式：**
 
 | 环节 | 格式 | 说明 |
 |------|------|------|
 | 应用录音 | PCM 16kHz 16bit mono | Android AudioRecord |
-| 上传至后端 | Opus（封装在multipart） | 客户端压缩后上传，大幅减小体积 |
-| 后端→讯飞STT | PCM 16kHz 16bit mono | 后端解码Opus→PCM后转发 |
-| TTS输出 | MP3 | 讯飞TTS默认输出格式 |
-| SSE推送音频 | MP3 base64 | 按句推送，单句通常 < 50KB |
-| 本地缓存 | 原始MP3文件 | 存储在应用私有目录，数据库记路径 |
-| 后端存储 | 原始MP3文件 | 存储在文件系统，数据库记audio_path |
+| 语音识别 | PCM → MSC SDK | 本地SDK直接处理PCM，无需上传 |
+| 语音合成 | MSC SDK → PCM/WAV | 本地TTS合成，直接播放 |
+| 网络传输 | 仅文字（无音频） | 后端只处理文字，不处理音频 |
+| 本地缓存 | PCM文件（可选） | 存储在应用私有目录 |
 
 ## 未来考虑（非MVP范围）
 
 - 语音克隆（通过CosyVoice/GPT-SoVITS克隆家长声音）
 - 同一设备上的多个儿童档案
 - 多设备同步
-- 离线模式，带本地TTS降级方案
 - 使用时长限制预警推送通知

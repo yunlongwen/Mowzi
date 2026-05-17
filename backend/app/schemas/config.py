@@ -4,12 +4,16 @@ from pydantic import BaseModel
 
 
 class DeviceRegisterRequest(BaseModel):
-    device_id: str
-    child_name: str | None = None
+    """Matches Android's DeviceRegisterRequest (camelCase via JSON)."""
+    deviceId: str
+    deviceName: str | None = None
+    deviceModel: str | None = None
 
 
 class DeviceRegisterResponse(BaseModel):
-    device_token: str
+    """Matches Android's DeviceRegisterResponse (camelCase via JSON)."""
+    success: bool = True
+    deviceToken: str
 
 
 class PinRequest(BaseModel):

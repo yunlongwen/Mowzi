@@ -93,8 +93,8 @@ dependencies {
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
-    // Audio - Opus编码
-    implementation("io.element.android:opusencoder:1.2.0")
+    // 讯飞MSC SDK（语音听写 + 语音合成）
+    implementation(files("libs/Msc.jar"))
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
