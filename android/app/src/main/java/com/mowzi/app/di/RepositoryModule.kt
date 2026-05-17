@@ -1,5 +1,6 @@
 package com.mowzi.app.di
 
+import com.mowzi.app.data.repository.ChatRepository
 import com.mowzi.app.data.repository.ConversationRepository
 import com.mowzi.app.data.repository.ConversationRepositoryImpl
 import com.mowzi.app.data.repository.MessageRepository
@@ -13,6 +14,12 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindChatRepository(
+        impl: ChatRepository
+    ): ChatRepository
 
     @Binds
     @Singleton

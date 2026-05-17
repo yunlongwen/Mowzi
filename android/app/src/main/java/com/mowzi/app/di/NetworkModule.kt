@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.mowzi.app.data.remote.MowziApi
+import com.mowzi.app.sse.SSEClient
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -16,12 +17,20 @@ import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import kotlinx.serialization.json.Json
 
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
     private val BASE_URL_KEY = stringPreferencesKey("api_base_url")
+
+    @Provides
+    @Singleton
+    fun provideJson(): Json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+    }
 
     @Provides
     @Singleton
@@ -33,9 +42,15 @@ object NetworkModule {
             .addInterceptor(authInterceptor)
             .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(0) // No timeout for streaming
             .writeTimeout(30, TimeUnit.SECONDS)
             .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideSSEClient(okHttpClient: OkHttpClient): SSEClient {
+        return SSEClient(okHttpClient)
     }
 
     @Provides
@@ -61,5 +76,11 @@ object NetworkModule {
     @Singleton
     fun provideMowziApi(retrofit: Retrofit): MowziApi {
         return retrofit.create(MowziApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideBaseUrl(dataStore: DataStore<Preferences>): String {
+        return dataStore.data.first()[BASE_URL_KEY] ?: "https://api.mowzi.example.com"
     }
 }
