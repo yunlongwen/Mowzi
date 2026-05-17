@@ -1,14 +1,16 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from app.config import settings
 
 engine = create_engine(
-    "sqlite:///./mowzi.db",
-    connect_args={"check_same_thread": False},
+    settings.database_url,
+    connect_args={"check_same_thread": False} if settings.database_url.startswith("sqlite") else {},
 )
-with engine.connect() as conn:
-    conn.execute(text("PRAGMA journal_mode=WAL"))
-    conn.execute(text("PRAGMA busy_timeout=5000"))
-    conn.commit()
+if settings.database_url.startswith("sqlite"):
+    with engine.connect() as conn:
+        conn.execute(text("PRAGMA journal_mode=WAL"))
+        conn.execute(text("PRAGMA busy_timeout=5000"))
+        conn.commit()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

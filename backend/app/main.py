@@ -6,6 +6,7 @@ app = FastAPI(title="Mowzi API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
+    # Intentionally open for development - restrict in production
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
