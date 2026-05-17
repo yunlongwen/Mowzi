@@ -26,24 +26,47 @@
 - 后端仅处理文字，保护儿童隐私
 - 家长PIN码保护的控制面板
 
-## 快速开始
+## 配置
 
-### 后端
+### 后端 `.env`
 
 ```bash
 cd backend
-cp .env.example .env  # 配置LLM和讯飞凭证
+cp .env.example .env
+```
+
+编辑 `.env` 填写以下配置：
+
+```env
+# LLM（支持OpenAI兼容接口，推荐MiniMax）
+LLM_API_URL=https://api.minimaxi.com/v1
+LLM_API_KEY=你的API密钥
+LLM_MODEL=MiniMax-M2.7
+
+# 讯飞MSC SDK（语音听写+合成）
+# 在 https://console.xfyun.cn 申请，SDK已集成在项目中
+XFYUN_APP_ID=你的AppID
+XFYUN_API_KEY=你的APIKey
+XFYUN_API_SECRET=你的APISecret
+```
+
+### 启动后端
+
+```bash
+cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Android
+### Android APK
 
 ```bash
 cd android
 ./gradlew assembleDebug
-# APK: app/build/outputs/apk/debug/app-debug.apk
+# 输出: app/build/outputs/apk/debug/app-debug.apk
 ```
+
+Android端已内置讯飞SDK（`app_id=1b20cd0f`），无需额外配置。首次使用需联网激活SDK，激活后可离线使用。
 
 ## 技术栈
 
